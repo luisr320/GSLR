@@ -28,7 +28,7 @@
 */
 
 
-#define VERSION "GS LR MEGA 0.2 - RC01"
+#define VERSION "GS LR MEGA 0.2 - RC02"
 
 
 #include <arduino.h>
@@ -40,6 +40,7 @@
 #include <SPI.h>
 #include <Bounce2.h>
 #include <FlashLogM.h>
+#include <GPSmath.h>
 //#include "PA_STR.h"
 
 #define GROUNDSTATION 1
@@ -90,54 +91,28 @@
 #define SCRROTATION 0 // 0 rotation
 #define CHARSCALE 1
 
-#define SCRPIXELX 48
-#define SCRPIXELY 84
+#define SCRPIXELX 48 
+#define SCRPIXELY 84 
 #define SCRLINES 6    // 6 lines
 #define SCRCHARS 14   // 14 characters
 // character size from Adafruit_GXF lib
 
-#endif
+#endif  
 
-//#define TFT_ST7735
+#define TFT_ST7735
 #ifdef TFT_ST7735
 
-#define I2C
-#ifdef I2C
 // pin definition for ITDB02-1.8 TFT display from ITEAD STUDIO
 // assuming the use of moteino (several pins are reserved)
-#define RST  18
-#define RS   19
-#define SDA  20
-#define SCL  21
-#define CS   22
+#define RST  A5 //18
+#define RS   A4 //19
+#define SDA  A2 //20
+#define SCL  A0 //21
+#define CS   A3 //22
 
 // Adafruit_ST7735 display = Adafruit_ST7735(CS, RS, SDA, SCL, RST);
 Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
 //	Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-#endif
-//#define SPI
-#ifdef SPI
-	// For the breakout, you can use any 2 or 3 pins
-	// These pins will also work for the 1.8" TFT shield
-#define TFT_CS     12
-#define TFT_RST    0  // you can also connect this to the Arduino reset
-	// in which case, set this #define pin to 0!
-#define TFT_DC     13
-
-	// Option 1 (recommended): must use the hardware SPI pins
-	// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
-	// an output. This is much faster - also required if you want
-	// to use the microSD card (see the image drawing example)
-	Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-	// Option 2: use any pins but a little slower!
-//#define TFT_SCLK 7   // set these to be whatever pins you like!
-//#define TFT_MOSI 5   // set these to be whatever pins you like!
-	//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
-
-
-#endif
 
 #define SCRPIXELX 160
 #define SCRPIXELY 128
@@ -146,10 +121,8 @@ Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
 #define CHARHEIGHT 8
 #define SCRROTATION 1 // 90� rotation
 #define CHARSCALE 2
-#define SCRLINES 10   // 20 Lines or 27 charactares / CHARSCALE
-#define SCRCHARS 10   // 21 characters or 16 lines /CHARSCALE
-
-
+#define SCRLINES 7   // 14 Lines or 26 charactares / CHARSCALE
+#define SCRCHARS 13   // 26 characters or 14 lines /CHARSCALE
 
 #define BLACK ST7735_BLACK
 #define WHITE ST7735_WHITE
@@ -160,7 +133,7 @@ Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
 
 #endif
 
-#define TFT_ILI9340
+//#define TFT_ILI9340
 #ifdef TFT_ILI9340
 #include "Adafruit_ILI9340.h"
 
@@ -257,10 +230,6 @@ byte CRC = 0;
 boolean data_end = false; // Here we will keep track of EOT (End Of Transmission).
 
 																										//Defining some constants
-const float pi = 4.0 * atan(1.0); //Pi - 3.1415...
-const float re = 6367e3; //mean Radius of Earth in meters
-const float deg2rad = pi / 180.0; //degree to radians
-
 																																		// Define the data packet struct that will be received from the GPS transmitter
 struct Payload
 {
@@ -302,7 +271,7 @@ uint8_t warningLevel = 0;	//warning messages are limited to overlap only some me
 
 // Timers
 unsigned long int timerLink;	//for dataloss timeout calculation
-unsigned long int timerWarning =0 ; //for warning display @ 2000ms intervals
+unsigned long int timerWarning =0 ; //for warning display @ 2000ms intervals 
 
 // general purpose auxiliar vars
 
@@ -315,9 +284,6 @@ char strtmp[40];  // to suport float to string convertion or other string manipu
 int len(char* str);
 byte checksum(char *str);
 void changeMenu();
-void d2i(float input, float factor, long &major, long &minor);
-long min2dec(long minor);
-float GPSDist(float uselat, float uselon, long int *homedist, long int *homeazim);
 void displayReset();
 void displaySetCursor(int line, int column);
 void fixposition();
@@ -382,7 +348,7 @@ void setup()
 	display.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
 
 	// POSITION CURSOR ON TOP LEFT
-	displayReset();
+	displayReset();	
 	//display.setContrast(60);
 	display.println("Starting TFT display!");
 	display.print("Ver:"); display.println(VERSION);
@@ -435,7 +401,7 @@ void setup()
 
 void loop()
 {
-
+	
 	// Navigate on scrren menu according to buttons
 
 	//Read Buttons states and set menu accordingly
@@ -453,18 +419,18 @@ void loop()
 	{
 		switch (menuPage)
 		{
-			case 1: // Navigate
+			case 1: // Navigate 
 				fixposition();
 				break;
 			case 2: // GPS info
 
 				//nothing on B2
 				break;
-			case 3: // Maximum
+			case 3: // Maximum 
 
 				//nothing on B2
 				break;
-			case 4: // Coordinates
+			case 4: // Coordinates 
 
 				//nothing on B2
 				break;
@@ -528,7 +494,13 @@ void loop()
 
 				warningLevel = setflag(warningLevel, WRN_FIX, FLAGRESET);
 
-				GPSDist(homelat, homelon, &homedist, &homeazim); // Run the distance calculating function
+				char tmpstr[8];
+				
+				Serial.print("\nDEBUG GPS:"); 
+				dtostrf(Data.latitude, 10, 4, tmpstr); Serial.print(tmpstr); Serial.print(Data.lat);
+				dtostrf(Data.longitude,10, 4, tmpstr); Serial.print(tmpstr); Serial.print(Data.lon);
+				Serial.println();
+				kmflag = GPSDist(homelat, homelon, Data.latitudedeg,Data.longitudedeg, &homedist, &homeazim); // Run the distance calculating function      
 
 																 // check maximum altitude
 				if (Data.altitude > maxalt + homealt)
@@ -536,7 +508,7 @@ void loop()
 					maxalt = Data.altitude - homealt;
 				}
 
-				// check maximum distance
+				// check maximum distance               
 				if (kmflag == 0)
 				{
 					kmflagmem = kmflag;
@@ -583,7 +555,7 @@ void loop()
 		if (millis() > (timerLink + 5000)) //When LOST for more than 5 sec...
 		{
 			warningLevel = setflag(warningLevel, WRN_LINK, FLAGSET);  // set LINK flag
-#ifdef BUZZER
+#ifdef BUZZER    
 			newbuzztimer = millis();
 			if (newbuzztimer > (oldbuzztimer + 2000))
 			{
@@ -647,111 +619,6 @@ void Blink(byte PIN, int DELAY_MS)//The BUZZ Blinking function
 }
 #endif
 
-void d2i(float input, float factor, long &major, long &minor)
-{
-	long sign = 1; if (input < 0) sign = -1;
-	input = abs(input);
-	long leading = long(input);
-	float remain = input - float(leading);
-	remain = remain * factor;
-	long remaining = long(remain);
-	major = sign * leading;
-	minor = remaining;
-}
-
-long min2dec(long minor)
-{
-	float minute = minor;
-	minute = minute / 100.0;
-	minute = minute / 60.0;
-	minute = minute * 10000.0;
-	return long(minute);
-}
-
-float GPSDist(float uselat, float uselon, long int *homedist, long int *homeazim)
-{
-
-	//
-	// compute distance and azimuth to waypoint (is in uselat/uselon)
-	//
-
-	float xh, yh, zh, xt, yt, zt;
-	float lat = uselat * deg2rad;
-	float lon = uselon * deg2rad;
-	xh = cos(lon) * cos(lat);
-	yh = sin(lon) * cos(lat);
-	zh = sin(lat);
-	d2i((float(Data.latitude) / 100.0), 100000.0, major1, minor1);
-	d2i((float(Data.longitude) / 100.0), 100000.0, major2, minor2);
-	float triplon = float(major2) + (float(min2dec(minor2)) / 100000.0);
-	float triplat = float(major1) + (float(min2dec(minor1)) / 100000.0);
-	if (Data.lat == 'S') triplat = -triplat;
-	if (Data.lon == 'W') triplon = -triplon;
-	lat = triplat * deg2rad;
-	lon = triplon * deg2rad;
-	xt = cos(lon) * cos(lat);
-	yt = sin(lon) * cos(lat);
-	zt = sin(lat);
-	float distance = re * re * ((xh - xt) * (xh - xt) + (yh - yt) * (yh - yt) + (zh - zt) * (zh - zt));
-	distance = sqrt(distance);
-	float Dvar = distance / 2.0;
-	float Evar = sqrt((re * re) - (Dvar * Dvar));
-	float angle = atan(Dvar / Evar);
-	distance = angle * re * 2.0; // (the 2.0 is because we computed the half distance)
-	long azimaj, azimin; long dismaj, dismin;
-	azimaj = 0;
-	dismaj = 0; dismin = 0;
-
-	// for distances <= 10 meter do not display the azimuth
-	if (Data.fix == 1)
-	{
-		if (distance >= 10)
-		{
-			float xn = yh * zt - zh * yt;
-			float yn = zh * xt - xh * zt;
-			float zn = xh * yt - yh * xt;
-			float rn = sqrt(xn * xn + yn * yn + zn * zn);
-			xn = xn / rn;
-			yn = yn / rn;
-			zn = zn / rn;
-			float xm = -yh;
-			float ym = +xh;
-			float zm = 0.0;
-			float rm = sqrt(xm * xm + ym * ym + zm * zm);
-			xm = xm / rm; ym = ym / rm; zm = zm / rm;
-			float azimuth = xm * xn + ym * yn + zm * zn;
-			if (azimuth > 1.0) azimuth = 1.0;
-			if (azimuth < -1.0) azimuth = -1.0;
-			azimuth = acos(azimuth) / deg2rad;
-			if (triplon < uselon) azimuth = 360.0 - azimuth;
-			azimuth = 360.0 - azimuth;
-			if (azimuth < 0) azimuth = 999;
-			if (azimuth > 360) azimuth = 999;
-			d2i(azimuth, 1.0, azimaj, azimin);
-
-			if (azimuth <180.0)
-			{
-				*homeazim = long(azimuth + 180.0); // invert Azimute to point HOME -> MODEL
-			}
-			else
-			{
-				*homeazim = long(azimuth - 180.0);
-			}
-		}
-		if (distance >= 10000.0)
-		{
-			distance = distance / 1000;
-			kmflag = 1;
-		}
-		else
-		{
-			kmflag = 0;
-		}
-		d2i(distance, 10.0, dismaj, dismin);
-		*homedist = distance;
-	}
-	return distance;
-}
 
 void displayReset()
 {
@@ -866,7 +733,7 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			}
 
 #ifdef GOOGLEMAPS
-			sendToGoogle();
+			sendToGoogle(); 
 #endif
 			break;
 		}
@@ -982,8 +849,8 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			}
 			break;
 		}
-
-
+			
+			
 	}
 #ifdef LCD
 	display.display();
@@ -1013,7 +880,7 @@ void displaywarning(int warningcode)
 			display.print(" GPS ");
 
 		}
-
+	
 
 	displaySetCursor(0, 0);
 	display.setTextColor(WHITE, BLACK);
@@ -1089,7 +956,7 @@ void sendToGoogle()
 		Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
 	}
 
-
+	
 }
 
 /*
