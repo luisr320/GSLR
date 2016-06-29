@@ -292,7 +292,7 @@ char strtmp[40];  // to suport float to string convertion or other string manipu
 	int len(char *str);
 	char* fill(char* str, int length, char charcode, bool initialize);
 	uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set);
-	void sendToGoogle(Payload strData);
+	void sendToGoogle(Payload stcData);
 #endif
 
 void setup()
@@ -857,47 +857,47 @@ void displaywarning(int warningcode)
 
 }
 
-void sendToGoogle(Payload strData)
+void sendToGoogle(Payload stcData)
 {
 	static int oldseconds = 0;
 
-	if (strData.seconds != oldseconds)
+	if (stcData.seconds != oldseconds)
 	{
-		oldseconds = strData.seconds;
+		oldseconds = stcData.seconds;
 
-		int latint = (int)strData.latitude;
-		int latdec = (strData.latitude * 10000) - (latint * 10000);
-		int lonint = (int)strData.longitude;
-		int londec = (strData.longitude * 10000) - (lonint * 10000);
+		int latint = (int)stcData.latitude;
+		int latdec = (stcData.latitude * 10000) - (latint * 10000);
+		int lonint = (int)stcData.longitude;
+		int londec = (stcData.longitude * 10000) - (lonint * 10000);
 
 		// Convert altitude to a string
 		char falt[8];
-		dtostrf(strData.altitude, 4, 1, falt);
+		dtostrf(stcData.altitude, 4, 1, falt);
 
 		// Convert speed to a string
 		char fspeed[8];
-		dtostrf(strData.groundspeed, 4, 2, fspeed);
+		dtostrf(stcData.groundspeed, 4, 2, fspeed);
 
 		// Convert track to a string
 		char ftrack[8];
-		dtostrf(strData.track, 4, 2, ftrack);
+		dtostrf(stcData.track, 4, 2, ftrack);
 
 		// Convert HDOP to a string
 		char fHDOP[4];
-		dtostrf(strData.HDOP, 1, 2, fHDOP);
+		dtostrf(stcData.HDOP, 1, 2, fHDOP);
 
 		// Convert geoidheight to a string
 		char fgeoh[8];
-		dtostrf(strData.geoidheight, 4, 1, fgeoh);
+		dtostrf(stcData.geoidheight, 4, 1, fgeoh);
 
 		//$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47
 		char *j = gpsstr1;
 		j += sprintf(j, "GPGGA,");
-		j += sprintf(j, "%.2d%.2d%.2d.000,", strData.hour, strData.minute, strData.seconds, strData.miliseconds); //123519 Fix taken at 12:35 : 19 UTC
-		j += sprintf(j, "%.4d.%.4d,%c,", latint, latdec, strData.lat); // 4807.038,N Latitude 48 deg 07.038' N
-		j += sprintf(j, "%.5d.%.4d,%c,", lonint, londec, strData.lon); // 4807.038,N Latitude 48 deg 07.038' N
+		j += sprintf(j, "%.2d%.2d%.2d.000,", stcData.hour, stcData.minute, stcData.seconds, stcData.miliseconds); //123519 Fix taken at 12:35 : 19 UTC
+		j += sprintf(j, "%.4d.%.4d,%c,", latint, latdec, stcData.lat); // 4807.038,N Latitude 48 deg 07.038' N
+		j += sprintf(j, "%.5d.%.4d,%c,", lonint, londec, stcData.lon); // 4807.038,N Latitude 48 deg 07.038' N
 		j += sprintf(j, "1,");                    //   1 Fix quality : 1 - Must always be 1 or we wouldn't be here
-		j += sprintf(j, "%.2d,", strData.satellites);        //   08           Number of satellites being tracked
+		j += sprintf(j, "%.2d,", stcData.satellites);        //   08           Number of satellites being tracked
 		j += sprintf(j, "%s,", fHDOP);
 		j += sprintf(j, "%s,M,", falt);       //   545.4, M      Altitude, Meters, above mean sea level
 		j += sprintf(j, "%s,M,,", fgeoh); // Geoid height
@@ -911,13 +911,13 @@ void sendToGoogle(Payload strData)
 		//$GPRMC,233913.000,A,3842.9618,N,00916.8614,W,0.50,50.58,180216,,,A*4A
 		char *k = gpsstr2;
 		k += sprintf(k, "GPRMC,");
-		k += sprintf(k, "%.2d%.2d%.2d.000,", strData.hour, strData.minute, strData.seconds, strData.miliseconds);
+		k += sprintf(k, "%.2d%.2d%.2d.000,", stcData.hour, stcData.minute, stcData.seconds, stcData.miliseconds);
 		k += sprintf(k, "A,"); // A = OK
-		k += sprintf(k, "%.4d.%.4d,%c,", latint, latdec, strData.lat); // 4807.038,N Latitude 48 deg 07.038' N
-		k += sprintf(k, "%.5d.%.4d,%c,", lonint, londec, strData.lon); // 4807.038,N Latitude 48 deg 07.038' N
+		k += sprintf(k, "%.4d.%.4d,%c,", latint, latdec, stcData.lat); // 4807.038,N Latitude 48 deg 07.038' N
+		k += sprintf(k, "%.5d.%.4d,%c,", lonint, londec, stcData.lon); // 4807.038,N Latitude 48 deg 07.038' N
 		k += sprintf(k, "%s,", fspeed);
 		k += sprintf(k, "%s,", ftrack);
-		k += sprintf(k, "%.2d%.2d%.2d,,,A", strData.day, strData.month, strData.year);
+		k += sprintf(k, "%.2d%.2d%.2d,,,A", stcData.day, stcData.month, stcData.year);
 
 		char hexCS2[2];
 		sprintf(hexCS2, "%02X", checksum(gpsstr2));
