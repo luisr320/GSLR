@@ -10,6 +10,14 @@
 // **********************************************************************************************************
 
 /*
+* version 1.2.0
+* 
+* date 2016.06.29 Edited by Pedro Albuquerque
+* Requirements:
+*	GPSMath.h
+*/
+
+/*
 * version 0.4 RC01
 * date:2016.06.14 Created by Pedro Albuquerque
 * date 2016.06.26 Edited by Luis rodrigues
@@ -39,6 +47,7 @@
 #include <Bounce2.h> //To handle buttons debounce
 #include <FlashLogM.h> //To handle the Flash log
 #include <math.h>
+#include <GPSMath.h>
 //#include "PA_STR.h"
 
 //************************* DEFINITIONS ****************************
@@ -48,7 +57,8 @@
 #define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
 #define MPAGES 7 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have google info sent trough the Serial port on menu 2
-#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
+//#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
+#define TFT_ST7735 // comment if using other display
 //#define DEBUG //Uncomment to activate Serial Monitor Debug
 //#define EEPROM_SIZE 1024
 //#define FLASH_SS 8 // FLASH SS enable pin is on D8
@@ -98,52 +108,27 @@
 #ifdef TFT_ST7735
 
 	#include <Adafruit_ST7735.h> //Required for OLED LCD
-	#define I2C
-	#ifdef I2C
-		// pin definition for ITDB02-1.8 TFT display from ITEAD STUDIO
-		// assuming the use of moteino (several pins are reserved)
-		#define RST  18
-		#define RS   19
-		#define SDA  20
-		#define SCL  21
-		#define CS   22
+	// pin definition for ITDB02-1.8 TFT display from ITEAD STUDIO
+	// assuming the use of moteino (several pins are reserved)
+	#define RST  A5 //18
+	#define RS   A4 //19
+	#define SDA  A2 //20
+	#define SCL  A0 //21
+	#define CS   A3 //22
 
-		// Adafruit_ST7735 display = Adafruit_ST7735(CS, RS, SDA, SCL, RST);
-		Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
-		//	Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-	#endif
-
-	//#define SPI
-	#ifdef SPI
-		// For the breakout, you can use any 2 or 3 pins
-		// These pins will also work for the 1.8" TFT shield
-		#define TFT_CS     12
-		#define TFT_RST    0  // you can also connect this to the Arduino reset
-			// in which case, set this #define pin to 0!
-		#define TFT_DC     13
-
-		// Option 1 (recommended): must use the hardware SPI pins
-		// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
-		// an output. This is much faster - also required if you want
-		// to use the microSD card (see the image drawing example)
-		Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-		// Option 2: use any pins but a little slower!
-		//#define TFT_SCLK 7   // set these to be whatever pins you like!
-		//#define TFT_MOSI 5   // set these to be whatever pins you like!
-		//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
-	#endif
+	// Adafruit_ST7735 display = Adafruit_ST7735(CS, RS, SDA, SCL, RST);
+	Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
+	//	Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 	#define SCRPIXELX 160
 	#define SCRPIXELY 128
 	// character size from Adafruit_GXF lib
 	#define CHARWIDTH 6
 	#define CHARHEIGHT 8
-	#define SCRROTATION 1 // 90� rotation
+	#define SCRROTATION 1 // 90 deg rotation
 	#define CHARSCALE 2
-	#define SCRLINES 10   // 20 Lines or 27 charactares / CHARSCALE
-	#define SCRCHARS 10   // 21 characters or 16 lines /CHARSCALE
+	#define SCRLINES 7   // 20 Lines or 27 charactares / CHARSCALE
+	#define SCRCHARS 13   // 21 characters or 16 lines /CHARSCALE
 
 
 
@@ -157,7 +142,7 @@
 #endif
 
 #ifdef TFT_ILI9340
-	#include "Adafruit_ILI9340_PA.h" //Library required to handle the TFT I2C with the radio interrupts
+	#include "Adafruit_ILI9340.h" //Library required to handle the TFT I2C with the radio interrupts
 		
 	// pin definition for FT_ILI9340 ADAFRUIT TFT display
 	#define SCL A0 //Clock
@@ -243,10 +228,6 @@ byte end_with = 0;
 byte CRC = 0;
 boolean data_end = false; // Here we will keep track of EOT (End Of Transmission).
 
-//Defining some constants
-const float pi = 4.0 * atan(1.0); //Pi - 3.1415...
-const float re = 6367e3; //mean Radius of Earth in meters
-const float deg2rad = pi / 180.0; //degree to radians
 
 // Define the data packet struct that will be received from the GPS transmitter
 struct Payload
@@ -301,9 +282,6 @@ char strtmp[40];  // to suport float to string convertion or other string manipu
 	int len(char* str);
 	byte checksum(char *str);
 	void changeMenu();
-	void d2i(float input, float factor, int major, int minor);
-	long min2dec(long minor);
-	float GPSDist(float uselat, float uselon, long int *homedist, long int *homeazim);
 	void displayReset();
 	void displaySetCursor(int line, int column);
 	void fixposition();
@@ -313,7 +291,7 @@ char strtmp[40];  // to suport float to string convertion or other string manipu
 	int len(char *str);
 	char* fill(char* str, int length, char charcode, bool initialize);
 	uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set);
-	void sendToGoogle();
+	void sendToGoogle(Payload strData);
 #endif
 
 void setup()
@@ -495,7 +473,7 @@ void loop()
 
 				warningLevel = setflag(warningLevel, WRN_FIX, FLAGRESET); 
 
-				GPSDist(homelat, homelon, &homedist, &homeazim); // Run the distance calculating function, passing the memorized position as arguments				
+				kmflag = GPSDist(homelat, homelon,Data.latitudedeg,Data.longitudedeg, &homedist, &homeazim); // Run the distance calculating function, passing the memorized position as arguments				
 
 				// check maximum altitude
 				if (Data.altitude > maxalt + homealt)
@@ -613,112 +591,6 @@ void Blink(byte PIN, int DELAY_MS)//The BUZZ Blinking function
 }
 #endif
 
-void d2i(float input, float factor, long &major, long &minor)
-{
-	long sign = 1; if (input < 0) sign = -1;
-	Serial.println(input);
-	if (input < 0) input = - input;
-	Serial.println(input);
-	long leading = long(input);
-	float remain = input - float(leading);
-	remain = remain * factor;
-	long remaining = long(remain);
-	major = sign * leading;
-	minor = remaining;
-}
-
-long min2dec(long minor)
-{
-	float minute = minor;
-	minute = minute / 100.0;
-	minute = minute / 60.0;
-	minute = minute * 10000.0;
-	return long(minute);
-}
-
-float GPSDist(float uselat, float uselon, long int *homedist, long int *homeazim)
-{
-
-	//
-	// compute distance and azimuth to waypoint (is in uselat/uselon)
-	//
-
-	float xh, yh, zh, xt, yt, zt;
-	float lat = uselat * deg2rad;
-	float lon = uselon * deg2rad;
-	xh = cos(lon) * cos(lat);
-	yh = sin(lon) * cos(lat);
-	zh = sin(lat);
-	d2i((float(Data.latitude) / 100.0), 100000.0, major1, minor1);
-	d2i((float(Data.longitude) / 100.0), 100000.0, major2, minor2);
-	float triplon = float(major2) + (float(min2dec(minor2)) / 100000.0);
-	float triplat = float(major1) + (float(min2dec(minor1)) / 100000.0);
-	if (Data.lat == 'S') triplat = -triplat;
-	if (Data.lon == 'W') triplon = -triplon;
-	lat = triplat * deg2rad;
-	lon = triplon * deg2rad;
-	xt = cos(lon) * cos(lat);
-	yt = sin(lon) * cos(lat);
-	zt = sin(lat);
-	float distance = re * re * ((xh - xt) * (xh - xt) + (yh - yt) * (yh - yt) + (zh - zt) * (zh - zt));
-	distance = sqrt(distance);
-	float Dvar = distance / 2.0;
-	float Evar = sqrt((re * re) - (Dvar * Dvar));
-	float angle = atan(Dvar / Evar);
-	distance = angle * re * 2.0; // (the 2.0 is because we computed the half distance)
-	
-	// for distances <= 10 meter do not display the azimuth
-	if (Data.fix == 1)
-	{
-		if (distance >= 10)
-		{
-			float xn = yh * zt - zh * yt;
-			float yn = zh * xt - xh * zt;
-			float zn = xh * yt - yh * xt;
-			float rn = sqrt(xn * xn + yn * yn + zn * zn);
-			xn = xn / rn;
-			yn = yn / rn;
-			zn = zn / rn;
-			float xm = -yh;
-			float ym = +xh;
-			float zm = 0.0;
-			float rm = sqrt(xm * xm + ym * ym + zm * zm);
-			xm = xm / rm; ym = ym / rm; zm = zm / rm;
-			float azimuth = xm * xn + ym * yn + zm * zn;
-			if (azimuth > 1.0) azimuth = 1.0;
-			if (azimuth < -1.0) azimuth = -1.0;
-			azimuth = acos(azimuth) / deg2rad;
-			if (triplon < uselon) azimuth = 360.0 - azimuth;
-			azimuth = 360.0 - azimuth;
-			if (azimuth < 0) azimuth = 999;
-			if (azimuth > 360) azimuth = 999;
-			
-
-			if (azimuth <180.0)
-			{
-				*homeazim = long(azimuth + 180.0); // invert Azimute to point HOME -> MODEL
-			}
-			else
-			{
-				*homeazim = long(azimuth - 180.0);
-			}
-		}
-
-		if (distance >= 10000.0)
-		{
-			distance = distance / 1000;
-			kmflag = 1;
-		}
-		else
-		{
-			kmflag = 0;
-		}
-
-		*homedist = distance;
-
-	}
-}
-
 void displayReset()
 {
 	display.fillScreen(BLACK);
@@ -828,7 +700,7 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			}
 
 #ifdef GOOGLEMAPS
-			sendToGoogle(); 
+			sendToGoogle(Data); 
 #endif
 			break;
 		}
@@ -984,47 +856,47 @@ void displaywarning(int warningcode)
 
 }
 
-void sendToGoogle()
+void sendToGoogle(Payload strData)
 {
 	static int oldseconds = 0;
 
-	if (Data.seconds != oldseconds)
+	if (strData.seconds != oldseconds)
 	{
-		oldseconds = Data.seconds;
+		oldseconds = strData.seconds;
 
-		int latint = (int)Data.latitude;
-		int latdec = (Data.latitude * 10000) - (latint * 10000);
-		int lonint = (int)Data.longitude;
-		int londec = (Data.longitude * 10000) - (lonint * 10000);
+		int latint = (int)strData.latitude;
+		int latdec = (strData.latitude * 10000) - (latint * 10000);
+		int lonint = (int)strData.longitude;
+		int londec = (strData.longitude * 10000) - (lonint * 10000);
 
 		// Convert altitude to a string
 		char falt[8];
-		dtostrf(Data.altitude, 4, 1, falt);
+		dtostrf(strData.altitude, 4, 1, falt);
 
 		// Convert speed to a string
 		char fspeed[8];
-		dtostrf(Data.groundspeed, 4, 2, fspeed);
+		dtostrf(strData.groundspeed, 4, 2, fspeed);
 
 		// Convert track to a string
 		char ftrack[8];
-		dtostrf(Data.track, 4, 2, ftrack);
+		dtostrf(strData.track, 4, 2, ftrack);
 
 		// Convert HDOP to a string
 		char fHDOP[4];
-		dtostrf(Data.HDOP, 1, 2, fHDOP);
+		dtostrf(strData.HDOP, 1, 2, fHDOP);
 
 		// Convert geoidheight to a string
 		char fgeoh[8];
-		dtostrf(Data.geoidheight, 4, 1, fgeoh);
+		dtostrf(strData.geoidheight, 4, 1, fgeoh);
 
 		//$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47
 		char *j = gpsstr1;
 		j += sprintf(j, "GPGGA,");
-		j += sprintf(j, "%.2d%.2d%.2d.000,", Data.hour, Data.minute, Data.seconds, Data.miliseconds); //123519 Fix taken at 12:35 : 19 UTC
-		j += sprintf(j, "%.4d.%.4d,%c,", latint, latdec, Data.lat); // 4807.038,N Latitude 48 deg 07.038' N
-		j += sprintf(j, "%.5d.%.4d,%c,", lonint, londec, Data.lon); // 4807.038,N Latitude 48 deg 07.038' N
+		j += sprintf(j, "%.2d%.2d%.2d.000,", strData.hour, strData.minute, strData.seconds, strData.miliseconds); //123519 Fix taken at 12:35 : 19 UTC
+		j += sprintf(j, "%.4d.%.4d,%c,", latint, latdec, strData.lat); // 4807.038,N Latitude 48 deg 07.038' N
+		j += sprintf(j, "%.5d.%.4d,%c,", lonint, londec, strData.lon); // 4807.038,N Latitude 48 deg 07.038' N
 		j += sprintf(j, "1,");                    //   1 Fix quality : 1 - Must always be 1 or we wouldn't be here
-		j += sprintf(j, "%.2d,", Data.satellites);        //   08           Number of satellites being tracked
+		j += sprintf(j, "%.2d,", strData.satellites);        //   08           Number of satellites being tracked
 		j += sprintf(j, "%s,", fHDOP);
 		j += sprintf(j, "%s,M,", falt);       //   545.4, M      Altitude, Meters, above mean sea level
 		j += sprintf(j, "%s,M,,", fgeoh); // Geoid height
@@ -1038,13 +910,13 @@ void sendToGoogle()
 		//$GPRMC,233913.000,A,3842.9618,N,00916.8614,W,0.50,50.58,180216,,,A*4A
 		char *k = gpsstr2;
 		k += sprintf(k, "GPRMC,");
-		k += sprintf(k, "%.2d%.2d%.2d.000,", Data.hour, Data.minute, Data.seconds, Data.miliseconds);
+		k += sprintf(k, "%.2d%.2d%.2d.000,", strData.hour, strData.minute, strData.seconds, strData.miliseconds);
 		k += sprintf(k, "A,"); // A = OK
-		k += sprintf(k, "%.4d.%.4d,%c,", latint, latdec, Data.lat); // 4807.038,N Latitude 48 deg 07.038' N
-		k += sprintf(k, "%.5d.%.4d,%c,", lonint, londec, Data.lon); // 4807.038,N Latitude 48 deg 07.038' N
+		k += sprintf(k, "%.4d.%.4d,%c,", latint, latdec, strData.lat); // 4807.038,N Latitude 48 deg 07.038' N
+		k += sprintf(k, "%.5d.%.4d,%c,", lonint, londec, strData.lon); // 4807.038,N Latitude 48 deg 07.038' N
 		k += sprintf(k, "%s,", fspeed);
 		k += sprintf(k, "%s,", ftrack);
-		k += sprintf(k, "%.2d%.2d%.2d,,,A", Data.day, Data.month, Data.year);
+		k += sprintf(k, "%.2d%.2d%.2d,,,A", strData.day, strData.month, strData.year);
 
 		char hexCS2[2];
 		sprintf(hexCS2, "%02X", checksum(gpsstr2));
