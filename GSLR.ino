@@ -36,9 +36,7 @@
 	- debug slow button reaction when radio data is being received.
 */
 
-
 #define VERSION "GS LR MEGA 0.4 - RC01"
-
 
 //#include <arduino.h>
 #include <SPIFlash.h>
@@ -56,7 +54,7 @@
 #define SERIAL_BAUD 115200 //To comunicate with serial monitor for debug
 #define BUTPIN1 A7 //Analog pin assigned to FIX button
 #define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
-#define MPAGES 7 //Number of menu pages
+#define MPAGES 8 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have google info sent trough the Serial port on menu 2
 //#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
 #define TFT_ST7735 // comment if using other display
@@ -127,9 +125,9 @@
 	#define CHARWIDTH 6
 	#define CHARHEIGHT 8
 	#define SCRROTATION 1 // 90 deg rotation
-	#define CHARSCALE 2
-	#define SCRLINES 7   // 20 Lines or 27 charactares / CHARSCALE
-	#define SCRCHARS 13   // 21 characters or 16 lines /CHARSCALE
+	#define CHARSCALE 1
+	#define SCRLINES 14   // 20 Lines or 27 charactares / CHARSCALE
+	#define SCRCHARS 25   // 21 characters or 16 lines /CHARSCALE
 
 
 
@@ -445,6 +443,32 @@ void loop()
 				displaymenu(menuPage, true);
 				break;
 			}
+			case 8: // dump log to google 
+			{
+				//  display some activity message
+				displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(3, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(2, 0); sprintf(strPRT, "dumping LOG..."); display.print(strPRT);
+
+				uint16_t logStart = mylog.nextRead;
+				Payload logData;
+
+				// Read data from log and send it to Google as data is read
+				noInterrupts(); // so that no addicional log data is saved
+				for (uint16_t i = 1; i < mylog.numRecords; i++)
+				{
+					#ifdef DEBUG
+						Serial.print("i:"); Serial.print(i); Serial.print("\t mem:"); Serial.println(mylog.nextRead);
+					#endif
+					mylog.readData(logData);
+					sendToGoogle(logData);
+				}
+				mylog.nextRead = logStart;	// reposition nextRead pointer for next read if necessary
+				interrupts();
+				displaymenu(menuPage, true);
+				break;
+			}
 
 		}
 		#ifdef LCD
@@ -520,6 +544,10 @@ void loop()
 			// save data just received to Log memory
 			mylog.saveData(Data);
 			displaymenu(menuPage,false); // update menu info (menu page number, screen refresh)
+			#ifdef GOOGLEMAPS
+				sendToGoogle(Data);
+			#endif
+
 		}
 	}
 	else // if no data received
@@ -683,8 +711,8 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				displaySetCursor(3, 0); sprintf(strPRT, "AZM:%s Deg", dtostrf(homeazim,4,0,strtmp)); display.print(strPRT);
 				displaySetCursor(4, 0); sprintf(strPRT, "DST:%s", dtostrf(homedist,4,0,strtmp)); display.print(strPRT);
 				if (kmflag == 0) display.print("m"); else display.print("Km");
-				display.setTextSize(CHARSCALE+4);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s K/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
+				display.setTextSize(CHARSCALE+2);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s K/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
 			}
 			else
@@ -694,15 +722,11 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				displaySetCursor(3, 4); sprintf(strPRT, "%s Deg      ", dtostrf(homeazim, 4, 0, strtmp)); display.print(strPRT);
 				displaySetCursor(4, 4); sprintf(strPRT, "%s", dtostrf(homedist,4,0,strtmp)); display.print(strPRT);
 				if (kmflag == 0) display.print("m     "); else display.print("Km      "); //Spaces added to allow "m" or "Km" to be erased after large numbers
-				display.setTextSize(CHARSCALE + 4);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
+				display.setTextSize(CHARSCALE + 2);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
 
 			}
-
-#ifdef GOOGLEMAPS
-			sendToGoogle(Data); 
-#endif
 			break;
 		}
 
@@ -817,6 +841,21 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			}
 			break;
 		}
+		case 8: //LOG dump
+		{
+			if (lastmenu != menuPage || forceRepaint)
+			{
+				lastmenu = menuPage;
+
+				displayReset();
+				displaySetCursor(0, 0); display.print("8 - Log Dump");
+				displaySetCursor(1, 0); sprintf(strPRT, "connect to PC", mylog.numRecords); display.print(strPRT);
+				displaySetCursor(2, 0); sprintf(strPRT, "press B2 to dump!"); display.print(strPRT);
+			}
+			break;
+		}
+
+
 	}
 #ifdef LCD
 	display.display();
@@ -859,11 +898,11 @@ void displaywarning(int warningcode)
 
 void sendToGoogle(Payload stcData)
 {
-	static int oldseconds = 0;
+	//static int oldseconds = 0;
 
-	if (stcData.seconds != oldseconds)
-	{
-		oldseconds = stcData.seconds;
+	//if (stcData.seconds != oldseconds) // if data is being received from GPS
+	//{
+	//	oldseconds = stcData.seconds;
 
 		int latint = (int)stcData.latitude;
 		int latdec = (stcData.latitude * 10000) - (latint * 10000);
@@ -904,9 +943,7 @@ void sendToGoogle(Payload stcData)
 
 		char hexCS1[2];
 		sprintf(hexCS1, "%02X", checksum(gpsstr1));
-		#ifdef DEBUG
-			Serial.print("$"); Serial.print(gpsstr1); Serial.print("*"); Serial.println(hexCS1);
-		#endif
+		Serial.print("$"); Serial.print(gpsstr1); Serial.print("*"); Serial.println(hexCS1);
 		
 		//$GPRMC,233913.000,A,3842.9618,N,00916.8614,W,0.50,50.58,180216,,,A*4A
 		char *k = gpsstr2;
@@ -921,10 +958,8 @@ void sendToGoogle(Payload stcData)
 
 		char hexCS2[2];
 		sprintf(hexCS2, "%02X", checksum(gpsstr2));
-		#ifdef DEBUG
-			Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
-		#endif
-	}	
+		Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
+	//}	
 
 	
 }
