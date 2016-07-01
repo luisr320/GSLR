@@ -1,0 +1,4 @@
+#define RadioAntena_width 8
+#define RadioAntena_height 8
+static unsigned short RadioAntena_bits[] = {
+   0x0000, 0x0004, 0x0034, 0x0024, 0x000c, 0x0078, 0x0000, 0x0000 };

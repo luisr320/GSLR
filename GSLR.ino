@@ -19,26 +19,20 @@
 */
 
 /*
-* version 0.4 RC01
-* date:2016.06.14 Created by Pedro Albuquerque
-* date 2016.06.26 Edited by Luis rodrigues
+* version V1.2.0
+* date: 2016.07.01 edited by Pedro Albuquerque
+* date: 2016.06.26 Edited by Luis rodrigues
+* date: 2016.06.14 Created by Pedro Albuquerque
 
-	This is the first version adapted for LORA version of the Moteino and Moteino MEGA.
-	Three major changes have occurred and as such, serious testing has to be done before accepting it as good
-	Major changes are:
-	1-porting code to Moteino LORA radios and MEGA processor
-	2-activating received data LOG using external Flash memory (4Mbit)
-	3-use TFT display using SPI interface
+	button speed reaction improvement
 
 	To Do:
-	- fix the distance calculation routine, that is show inconsistent results
-	- debug situation were no warning is displayed. WarningLevel var is consistent with status, but not displayed on display
-	- debug slow button reaction when radio data is being received.
+	- include a GPS module on GS to permamnently assist on plane recue
+	- include a function send a command to activate a buzzer on RS to improve plane detection
+
 */
 
-
-#define VERSION "GS LR MEGA 0.4 - RC01"
-
+#define VERSION "GS LR MEGA V1.2.0"
 
 //#include <arduino.h>
 #include <SPIFlash.h>
@@ -49,24 +43,23 @@
 #include <FlashLogM.h> //To handle the Flash log
 #include <math.h>
 #include <GPSMath.h>
-//#include "PA_STR.h"
 
 //************************* DEFINITIONS ****************************
 #define FREQUENCY 434 //Match with the correct radio frequency of the other radio
 #define SERIAL_BAUD 115200 //To comunicate with serial monitor for debug
 #define BUTPIN1 A7 //Analog pin assigned to FIX button
 #define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
-#define MPAGES 7 //Number of menu pages
+#define MPAGES 8 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have google info sent trough the Serial port on menu 2
 //#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
-#define TFT_ST7735 // comment if using other display
+//#define LCD // uncomment to use LCD display
+#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
 //#define DEBUG //Uncomment to activate Serial Monitor Debug
 //#define EEPROM_SIZE 1024
 //#define FLASH_SS 8 // FLASH SS enable pin is on D8
 //#define FLASH_MAXADR  524288  // SPI flash = 4Mb = 512KB = 524288 B
 //#define BUZZER // Comment if a buzzer is installed
 //#define LCD //Uncomment if you use the NOKIA LCD
-//#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT
 
 
 //**************************INITIATE HARDWARE*************************
@@ -91,7 +84,14 @@
 	// pin 26/A2 - Data/Command select (D/C)
 	// pin 27/A3 - LCD chip select (CS)
 	// pin 28/A4 - LCD reset (RST)
-	Adafruit_PCD8544 display = Adafruit_PCD8544(A0, A1, A2, A3, A4);
+	
+	#define RST  0 //A5 //18
+	#define RS   1 //A4 //19
+	#define SDA  A2 //20
+	#define SCL  A0 //21
+	#define CS   3 //A3 //22
+
+	Adafruit_PCD8544 display = Adafruit_PCD8544(SCL,SDA,CS,RS, RST);
 
 	// character size from Adafruit_GXF lib
 	#define CHARWIDTH 6
@@ -111,11 +111,11 @@
 	#include <Adafruit_ST7735.h> //Required for OLED LCD
 	// pin definition for ITDB02-1.8 TFT display from ITEAD STUDIO
 	// assuming the use of moteino (several pins are reserved)
-	#define RST  A5 //18
-	#define RS   A4 //19
+	#define RST  1 //A5 //18
+	#define RS   0 //A4 //19
 	#define SDA  A2 //20
 	#define SCL  A0 //21
-	#define CS   A3 //22
+	#define CS   3 //A3 //22
 
 	// Adafruit_ST7735 display = Adafruit_ST7735(CS, RS, SDA, SCL, RST);
 	Adafruit_ST7735 display = Adafruit_ST7735(CS, RS,  RST);
@@ -127,9 +127,9 @@
 	#define CHARWIDTH 6
 	#define CHARHEIGHT 8
 	#define SCRROTATION 1 // 90 deg rotation
-	#define CHARSCALE 2
-	#define SCRLINES 7   // 20 Lines or 27 charactares / CHARSCALE
-	#define SCRCHARS 13   // 21 characters or 16 lines /CHARSCALE
+	#define CHARSCALE 1
+	#define SCRLINES 14   // 20 Lines or 27 charactares / CHARSCALE
+	#define SCRCHARS 25   // 21 characters or 16 lines /CHARSCALE
 
 
 
@@ -149,9 +149,9 @@
 	#define SCL A0 //Clock
 	#define MISO A1 //MISO
 	#define MOSI A2 //MOSI
-	#define CS A3 //Chip Select
-	#define DC A4 //Data Chip
-	#define RST A5 //Reset
+	#define CS 3	// A3 //Chip Select
+	#define DC 1	//A4 //Data Chip
+	#define RST 0	//A5 //Reset
 
 	//Screen size defenition
 	#define SCRPIXELX 320
@@ -295,6 +295,27 @@ char strtmp[40];  // to suport float to string convertion or other string manipu
 	void sendToGoogle(Payload stcData);
 #endif
 
+
+	
+	bool buttonPressed(int butpin)
+	{
+		bool status = false;
+		bool arrStatus[8];
+		uint8_t sumStatus = 0;
+
+		for (uint8_t i = 0; i < 8; i++)
+		{
+			sumStatus += digitalRead(butpin);
+			Serial.print("sumStatus:"); Serial.println(sumStatus);
+		}
+		if (sumStatus % 8 == 0)
+			return !bool(sumStatus >> 3);
+		else
+			return false;
+
+	}
+
+
 void setup()
 {
 
@@ -344,6 +365,9 @@ void setup()
 		//display.setContrast(60);
 		display.println("Starting TFT display!");
 		display.print("Ver:"); display.println(VERSION);
+
+		
+		delay(5000);
 	#endif
 
 	#ifdef TFT_ILI9340 // display Setup OLED LCD
@@ -387,13 +411,7 @@ void setup()
 void loop()
 {
 
-	// Navigate on scrren menu according to buttons
-
-	//Read Buttons states and set menu accordingly
-	debouncer1.update();
-	debouncer2.update();
-
-	if (debouncer1.fell())  // process button 1 if pressed - Menu navigation
+		if (!digitalRead(BUTPIN1))  // process button 1 if pressed - Menu navigation
 	{
 		#ifdef DEBUG
 				Serial.println("DEBUG - B1 click");
@@ -402,7 +420,7 @@ void loop()
 		displaymenu(menuPage,true);
 		warningLevel = setflag(warningLevel, 0xFF, FLAGRESET); // reset all warning to force re-evaluation
 	}
-	if (debouncer2.fell())// process button 2 if pressed - Function within Menu
+	if (!digitalRead(BUTPIN2))// process button 2 if pressed - Function within Menu
 	{
 		switch (menuPage)
 		{
@@ -442,6 +460,32 @@ void loop()
 				displaySetCursor(2, 0); sprintf(strPRT, "ERASING LOG..."); display.print(strPRT);
 
 				mylog.eraseData(); //erase LOG memory on B2
+				displaymenu(menuPage, true);
+				break;
+			}
+			case 8: // dump log to google 
+			{
+				//  display some activity message
+				displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(3, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
+				displaySetCursor(2, 0); sprintf(strPRT, "dumping LOG..."); display.print(strPRT);
+
+				uint16_t logStart = mylog.nextRead;
+				Payload logData;
+
+				// Read data from log and send it to Google as data is read
+				noInterrupts(); // so that no addicional log data is saved
+				for (uint16_t i = 1; i < mylog.numRecords; i++)
+				{
+					#ifdef DEBUG
+						Serial.print("i:"); Serial.print(i); Serial.print("\t mem:"); Serial.println(mylog.nextRead);
+					#endif
+					mylog.readData(logData);
+					sendToGoogle(logData);
+				}
+				mylog.nextRead = logStart;	// reposition nextRead pointer for next read if necessary
+				interrupts();
 				displaymenu(menuPage, true);
 				break;
 			}
@@ -520,6 +564,10 @@ void loop()
 			// save data just received to Log memory
 			mylog.saveData(Data);
 			displaymenu(menuPage,false); // update menu info (menu page number, screen refresh)
+			#ifdef GOOGLEMAPS
+				sendToGoogle(Data);
+			#endif
+
 		}
 	}
 	else // if no data received
@@ -671,6 +719,7 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			break;
 
 		}
+
 		case 2: //INFO MENU
 		{
 			if (lastmenu != menuPage || forceRepaint)
@@ -678,31 +727,26 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				lastmenu = menuPage;
 				displayReset();
 				displaySetCursor(0, 0); display.print("2 - INFO");
-				displaySetCursor(1, 0); sprintf(strPRT, "ALT:%s m", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "SPD:%s Km/h", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "AZM:%s Deg", dtostrf(homeazim,4,0,strtmp)); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "DST:%s", dtostrf(homedist,4,0,strtmp)); display.print(strPRT);
+				sprintf(strPRT, "ALT:%s m", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(1, 0); display.print(strPRT);
+				sprintf(strPRT, "SPD:%s Km/h", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(2, 0); display.print(strPRT);
+				sprintf(strPRT, "AZM:%s Deg", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(3, 0); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "DST:%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
 				if (kmflag == 0) display.print("m"); else display.print("Km");
-				display.setTextSize(CHARSCALE+4);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s K/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
+				display.setTextSize(CHARSCALE + 2);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
 			}
 			else
 			{
-				displaySetCursor(1, 4); sprintf(strPRT, "%s m      ", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 4); sprintf(strPRT, "%s Km/h      ", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(3, 4); sprintf(strPRT, "%s Deg      ", dtostrf(homeazim, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 4); sprintf(strPRT, "%s", dtostrf(homedist,4,0,strtmp)); display.print(strPRT);
+				sprintf(strPRT, "%s m      ", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(1, 4); display.print(strPRT);
+				sprintf(strPRT, "%s Km/h      ", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(2, 4); display.print(strPRT);
+				sprintf(strPRT, "%s Deg      ", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(3, 4); display.print(strPRT);
+				displaySetCursor(4, 4); sprintf(strPRT, "%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
 				if (kmflag == 0) display.print("m     "); else display.print("Km      "); //Spaces added to allow "m" or "Km" to be erased after large numbers
-				display.setTextSize(CHARSCALE + 4);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed,1,0,strtmp)); display.print(strPRT);
+				display.setTextSize(CHARSCALE + 2);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
-
 			}
-
-#ifdef GOOGLEMAPS
-			sendToGoogle(Data); 
-#endif
 			break;
 		}
 
@@ -758,7 +802,6 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			break;
 
 		}
-
 
 		case 5: //RECOVERY MENU
 		{
@@ -817,6 +860,21 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			}
 			break;
 		}
+		case 8: //LOG dump
+		{
+			if (lastmenu != menuPage || forceRepaint)
+			{
+				lastmenu = menuPage;
+
+				displayReset();
+				displaySetCursor(0, 0); display.print("8 - Log Dump");
+				displaySetCursor(1, 0); sprintf(strPRT, "connect to PC", mylog.numRecords); display.print(strPRT);
+				displaySetCursor(2, 0); sprintf(strPRT, "press B2 to dump!"); display.print(strPRT);
+			}
+			break;
+		}
+
+
 	}
 #ifdef LCD
 	display.display();
@@ -859,11 +917,11 @@ void displaywarning(int warningcode)
 
 void sendToGoogle(Payload stcData)
 {
-	static int oldseconds = 0;
+	//static int oldseconds = 0;
 
-	if (stcData.seconds != oldseconds)
-	{
-		oldseconds = stcData.seconds;
+	//if (stcData.seconds != oldseconds) // if data is being received from GPS
+	//{
+	//	oldseconds = stcData.seconds;
 
 		int latint = (int)stcData.latitude;
 		int latdec = (stcData.latitude * 10000) - (latint * 10000);
@@ -904,9 +962,7 @@ void sendToGoogle(Payload stcData)
 
 		char hexCS1[2];
 		sprintf(hexCS1, "%02X", checksum(gpsstr1));
-		#ifdef DEBUG
-			Serial.print("$"); Serial.print(gpsstr1); Serial.print("*"); Serial.println(hexCS1);
-		#endif
+		//Serial.print("$"); Serial.print(gpsstr1); Serial.print("*"); Serial.println(hexCS1);
 		
 		//$GPRMC,233913.000,A,3842.9618,N,00916.8614,W,0.50,50.58,180216,,,A*4A
 		char *k = gpsstr2;
@@ -921,10 +977,8 @@ void sendToGoogle(Payload stcData)
 
 		char hexCS2[2];
 		sprintf(hexCS2, "%02X", checksum(gpsstr2));
-		#ifdef DEBUG
-			Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
-		#endif
-	}	
+		//Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
+	//}	
 
 	
 }
