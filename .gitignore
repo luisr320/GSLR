@@ -1,0 +1,6 @@
+_vm
+__vm
+Release
+.vs
+*.vcx*
+*.sln
