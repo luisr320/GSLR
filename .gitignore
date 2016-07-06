@@ -1,7 +1,10 @@
-_vm
 __vm
 Release
 .vs
 *.vcx*
 *.sln
 Img
+.pioenvs
+.clang_complete
+.gcc-flags.json
+.travis*

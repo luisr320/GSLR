@@ -93,13 +93,13 @@ To Do:
 	#define CHARHEIGHT 8
 	#define SCRROTATION 0 // 0 rotation
 	#define CHARSCALE 1
-	#define SCRPIXELX 48 
-	#define SCRPIXELY 84 
+	#define SCRPIXELX 48
+	#define SCRPIXELY 84
 	#define SCRLINES 6    // 6 lines
 	#define SCRCHARS 14   // 14 characters
 
 	#define PIN_LCD_LIGHT 9 //Backlight pin for NOKIA LCD
-#endif  
+#endif
 
 #ifdef TFT_ST7735
 	#include <Adafruit_ST7735.h> //Required for OLED LCD
@@ -251,7 +251,7 @@ uint8_t warningLevel = 0;	//warning messages are limited to overlap only some me
 
 																										// Timers
 unsigned long int timerLink;	//for data loss timeout calculation
-unsigned long int timerWarning = 0; //for warning display @ 2000ms intervals 
+unsigned long int timerWarning = 0; //for warning display @ 2000ms intervals
 
 																																				// General purpose auxiliary vars
 char strPRT[100]; // to support any print command with sprintf
@@ -287,11 +287,11 @@ void setup()
 	// ### Initialize push-buttons
 	pinMode(BUTPIN1, INPUT_PULLUP);	// Setup the first button with an internal pull-up
 	pinMode(BUTPIN2, INPUT_PULLUP);	// Setup the second button with an internal pull-up
-	
+
 	#ifdef LCD
 		pinMode(PIN_LCD_LIGHT, OUTPUT); //LCD backlight, LOW = backlight ON
 	#endif
-	
+
 	#ifdef BUZZER
 		oldbuzztimer = 0; //Initialize buzzer timer variable
 		pinMode(BUZZ, OUTPUT); //Make BUZZ pin an output
@@ -364,18 +364,18 @@ void loop()
 	{
 		switch (menuPage)
 		{
-		case 1: // Navigate 
+		case 1: // Navigate
 			fixposition();
 			break;
 		case 2: // GPS info
 
 										//No action for B2
 			break;
-		case 3: // Maximum 
+		case 3: // Maximum
 
 										//No action for B2
 			break;
-		case 4: // Coordinates 
+		case 4: // Coordinates
 
 										//No action for B2
 			break;
@@ -455,14 +455,14 @@ void loop()
 
 				warningLevel = setflag(warningLevel, WRN_FIX, FLAGRESET);
 
-				kmflag = GPSDist(homelat, homelon, Data.latitudedeg, Data.longitudedeg, &homedist, &homeazim); // Run the distance calculating function, passing the memorized position as arguments				
+				kmflag = GPSDist(homelat, homelon, Data.latitudedeg, Data.longitudedeg, &homedist, &homeazim); // Run the distance calculating function, passing the memorized position as arguments
 
 																																																																																																			// check maximum altitude
 				if (Data.altitude > maxalt + homealt)
 				{
 					maxalt = Data.altitude - homealt;
 				}
-				// check maximum distance               
+				// check maximum distance
 				if (kmflag == 0)
 				{
 					kmflagmem = kmflag;
@@ -512,7 +512,7 @@ void loop()
 		if (millis() > (timerLink + 5000)) //If LINK lost for more than 5 sec...
 		{
 			warningLevel = setflag(warningLevel, WRN_LINK, FLAGSET);  // set LINK flag
-			#ifdef BUZZER    
+			#ifdef BUZZER
 						newbuzztimer = millis();
 						if (newbuzztimer > (oldbuzztimer + 2000))
 						{
