@@ -30,8 +30,6 @@ To Do:
 */
 
 
-
-
 #include <arduino.h>
 #include <SPIFlash.h> //Arduino/Moteino library for read/write access to SPI flash memory chips. https://github.com/LowPowerLab/SPIFlash
 #include <SPI.h> //Arduino native SPI library
@@ -40,6 +38,7 @@ To Do:
 #include <FlashLogM.h> //To handle the Flash log https://github.com/Pedroalbuquerque/FlashLogM
 #include <math.h> //Arduino native math library
 #include <GPSMath.h> //To handle all GPS calculations https://github.com/Pedroalbuquerque/GPSMath
+#include <Adafruit_GPS.h>
 
 //************************* DEFINITIONS ****************************
 
@@ -50,9 +49,9 @@ To Do:
 #define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
 #define MPAGES 8 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have Google info sent trough the Serial port on menu 2
-#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
+//#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
 //#define LCD // uncomment to use NOKIA LCD display
-//#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
+#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
 //#define DEBUG //Uncomment to activate Serial Monitor Debug
 //#define BUZZER // Comment if a buzzer is installed
 
@@ -238,6 +237,10 @@ struct Payload
 };
 Payload Data;
 
+Payload GS_GPS; // struct to hold last good position from GS GPS
+Payload RS_GPS; // struct to hold last good position from RS GPS, this cold be tha last save position on LOG
+
+
 // Menu navigation and Warning messages vars and constants
 
 uint8_t warningLevel = 0;	//warning messages are limited to overlap only some menu screens
@@ -257,6 +260,12 @@ unsigned long int timerWarning = 0; //for warning display @ 2000ms intervals
 char strPRT[100]; // to support any print command with sprintf
 char strtmp[40];  // to support float to string conversion or other string manipulation
 
+// object declaration to use GPS
+
+Adafruit_GPS GPS(&Serial1); // connect GPS to serial 1 GPS_TX on pin10 GPS_RX on pin 11
+#define GPS_BAUD 9600
+boolean usingInterrupt = false;
+
 // Function declaration if using Visual studio IDE
 #define VISUALSTD
 #ifdef VISUALSTD
@@ -273,16 +282,22 @@ char strtmp[40];  // to support float to string conversion or other string manip
 	char* fill(char* str, int length, char charcode, bool initialize);
 	uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set);
 	void sendToGoogle(Payload stcData);
+	void useInterrupt(boolean v);
 #endif
 
 
 void setup()
 {
-
+	// initilize Serial port for debugging
 	Serial.begin(SERIAL_BAUD); //Initialize the Serial port at the specified baud rate
 	Serial.println("GPS AND TELEMETRY MODULE");
 	Serial.println(VERSION);
 	Serial.println("Initializing...");
+
+	// initialize GPS
+	GPS.begin(GPS_BAUD);
+	useInterrupt(true);
+
 
 	// ### Initialize push-buttons
 	pinMode(BUTPIN1, INPUT_PULLUP);	// Setup the first button with an internal pull-up
@@ -384,16 +399,13 @@ void loop()
 										//No action for B2
 			break;
 		case 6: // Utils Adjust LCD brightness
-		{
 			#ifdef LCD
 				level = level + 51;
 				if (level > 255) level = 0;
 				analogWrite(PIN_LCD_LIGHT, level);
 			#endif
 			break;
-		}
 		case 7: // LOG erase
-		{
 			displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(3, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
@@ -401,9 +413,7 @@ void loop()
 			mylog.eraseData(); //erase LOG memory on B2
 			displaymenu(menuPage, true);
 			break;
-		}
 		case 8: // dump log to Googlemaps
-		{
 			//  display some activity message
 			displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
@@ -412,13 +422,11 @@ void loop()
 			uint16_t logStart = mylog.nextRead;
 			Payload logData;
 
+			Serial.println("\n********   Log dump ********");
 			// Read data from log and send it to Google as data is read
 			noInterrupts(); // so that no additional log data is saved
 			for (uint16_t i = 1; i < mylog.numRecords; i++)
 			{
-				#ifdef DEBUG
-								Serial.print("i:"); Serial.print(i); Serial.print("\t mem:"); Serial.println(mylog.nextRead);
-				#endif
 				mylog.readData(logData);
 				sendToGoogle(logData);
 			}
@@ -427,7 +435,6 @@ void loop()
 			displaymenu(menuPage, true);
 			break;
 		}
-	}
 		#ifdef LCD
 			display.display();
 		#endif
@@ -500,10 +507,10 @@ void loop()
 			}
 			// save data just received to Log memory
 			mylog.saveData(Data);
-			displaymenu(menuPage, false); // update menu info (menu page number, screen refresh)
 			#ifdef GOOGLEMAPS
 						sendToGoogle(Data);
 			#endif
+			displaymenu(menuPage, false); // update menu info (menu page number, screen refresh)
 		}
 	}
 	else // if no data received
@@ -531,6 +538,29 @@ void loop()
 		displaywarning(warningLevel);
 		timerWarning = millis();
 	}
+
+	/*
+	// check GPS data if on Search menu (menu 9)
+	if(menuPage = 9)
+	{
+		// place here code to process local GPS data, calculate distance and azimuth from last good RS position
+		if (GPS.newNMEAreceived())
+		{
+			if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+			{
+				Serial.println("GS NMEA not parsed");
+				return;                         // we can fail to parse a sentence in which case we should just wait for another
+			}
+			else
+			{
+				// save local GPS data to a var
+			}
+
+			// put here code to calculate distance and azimuth from GS to last RS good location
+		}
+
+	}
+	*/
 }
 
 //----------------------------------------------------------------------//
@@ -808,13 +838,19 @@ void displaywarning(int warningcode)
 	displaySetCursor(SCRLINES, 0);
 	if (warningcode & WRN_LINK) //link lost
 	{
-		Serial.print("link Lost");
+		#ifdef DEBUG
+			Serial.print("link Lost");
+		#endif
+
 		display.setTextColor(WHITE, RED);
 		display.print("LINK ");
 	}
 	if (warningcode & WRN_FIX)  // GPS fix lost
 	{
-		Serial.println("GPS fix Lost");
+		#ifdef DEBUG
+			Serial.println("GPS fix Lost");
+		#endif
+
 		display.setTextColor(BLACK, ORANGE);
 		display.print(" GPS ");
 
@@ -907,4 +943,30 @@ char* fill(char* str, int length, char charcode, bool initialize)
 	}
 	str[i] = NULL;
 	return str;
+}
+
+// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
+SIGNAL(TIMER0_COMPA_vect) {
+  char c = GPS.read();
+  // if you want to debug, this is a good time to do it!
+#ifdef UDR0
+    if (c) UDR0 = c;
+  // writing direct to UDR0 is much much faster than Serial.print
+  // but only one character can be written at a time.
+#endif
+}
+
+void useInterrupt(boolean v) {
+  if (v) {
+    // Timer0 is already used for millis() - we'll just interrupt somewhere
+    // in the middle and call the "Compare A" function above
+    OCR0A = 0xAF;
+    TIMSK0 |= _BV(OCIE0A);
+    usingInterrupt = true;
+  }
+  else {
+    // do not call the interrupt function COMPA anymore
+    TIMSK0 &= ~_BV(OCIE0A);
+    usingInterrupt = false;
+  }
 }
