@@ -239,6 +239,7 @@ struct Payload
 	float latitudedeg;
 	float longitudedeg;
 	bool fix; // FIX 1/0
+	float batteryVolts;
 };
 Payload Data;
 
@@ -676,6 +677,7 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				displaySetCursor(2, 0); sprintf(strPRT, "QUAL:%d", Data.fixquality); display.print(strPRT);
 				displaySetCursor(3, 0);  sprintf(strPRT, "HDOP:%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
 				displaySetCursor(4, 0); sprintf(strPRT, "RX_RSSI:%d", rssi); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "RS BAT:%s V", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
 			}
 			else // if already in menu, print just info to reduce screen flicker
 			{
@@ -683,6 +685,7 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				displaySetCursor(2, 5); display.print(Data.fixquality);
 				displaySetCursor(3, 5);  sprintf(strPRT, "%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
 				displaySetCursor(4, 8); display.print(rssi);
+				displaySetCursor(5, 7); sprintf(strPRT, "%s", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
 			}
 			break;
 		}
