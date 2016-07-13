@@ -270,7 +270,6 @@ char strtmp[40];  // to support float to string conversion or other string manip
 
 Adafruit_GPS GPS(&Serial1); // connect GPS to serial 1 GPS_TX on pin10 GPS_RX on pin 11
 #define GPS_BAUD 9600
-boolean usingInterrupt = false;
 
 // Function declaration if using Visual studio IDE
 #define VISUALSTD
@@ -288,7 +287,6 @@ boolean usingInterrupt = false;
 	char* fill(char* str, int length, char charcode, bool initialize);
 	uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set);
 	void sendToGoogle(Payload stcData);
-	void useInterrupt(boolean v);
 #endif
 
 
@@ -312,7 +310,11 @@ void setup()
 
 	// initialize GPS
 	GPS.begin(GPS_BAUD);
-	useInterrupt(true);
+	// Enable interrupts on Timer0
+	// Timer0 is already used for millis() - we'll just interrupt somewhere
+	// in the middle and call the "Compare A" function
+	OCR0A = 0xAF;
+	TIMSK0 |= _BV(OCIE0A);
 
 
 	// ### Initialize push-buttons
@@ -967,19 +969,4 @@ SIGNAL(TIMER0_COMPA_vect) {
 		// writing direct to UDR0 is much much faster than Serial.print
 		// but only one character can be written at a time.
 #endif
-}
-
-void useInterrupt(boolean v) {
-		if (v) {
-				// Timer0 is already used for millis() - we'll just interrupt somewhere
-				// in the middle and call the "Compare A" function above
-				OCR0A = 0xAF;
-				TIMSK0 |= _BV(OCIE0A);
-				usingInterrupt = true;
-		}
-		else {
-				// do not call the interrupt function COMPA anymore
-				TIMSK0 &= ~_BV(OCIE0A);
-				usingInterrupt = false;
-		}
 }
