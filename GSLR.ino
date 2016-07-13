@@ -296,9 +296,9 @@ void setup()
 {
 	// initilize Serial port for debugging
 	Serial.begin(SERIAL_BAUD); //Initialize the Serial port at the specified baud rate
-	Serial.println("GPS AND TELEMETRY MODULE");
+	Serial.println F("GPS AND TELEMETRY MODULE");
 	Serial.println(VERSION);
-	Serial.println("Initializing...");
+	Serial.println F("Initializing...");
 
 	if (manager.init())
 	{
@@ -306,7 +306,7 @@ void setup()
 	}
 	else
 	{
-		Serial.println("init failed");
+		Serial.println F("init failed");
 		// Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
 	}
 
@@ -363,15 +363,15 @@ void setup()
 
 	// initialize log variables to start write and read
 	mylog.initialize(Data);
-	Serial.println("Log data initialized");
-	Serial.print("Log next write addr:"); Serial.println(mylog.nextWrite);
-	Serial.print("Log next read addr:"); Serial.println(mylog.nextRead);
-	Serial.print("Log # records saved:"); Serial.println(mylog.numRecords);
+	Serial.println F("Log data initialized");
+	Serial.print F("Log next write addr:"); Serial.println(mylog.nextWrite);
+	Serial.print F("Log next read addr:"); Serial.println(mylog.nextRead);
+	Serial.print F("Log # records saved:"); Serial.println(mylog.numRecords);
 
 	// load menu screen on LCD/TFT
 	displaymenu(menuPage, false); //Start menu display (menu page number, screen refresh requirement)
 
-	Serial.println("Setup finished");
+	Serial.println F("Setup finished");
 
 	timerLink = millis(); //Initialize Data link loss timeout timer variable
 }
@@ -431,7 +431,7 @@ void loop()
 			uint16_t logStart = mylog.nextRead;
 			Payload logData;
 
-			Serial.println("\n********   Log dump ********");
+			Serial.println F("\n********   Log dump ********");
 			// Read data from log and send it to Google as data is read
 			noInterrupts(); // so that no additional log data is saved
 			for (uint16_t i = 1; i < mylog.numRecords; i++)
@@ -660,7 +660,7 @@ void logposition(float loglat, float loglong)
 
 void displaymenu(byte menuPage, bool forceRepaint)
 {
-	//Serial.print("Menu:"); Serial.println(menuPage);
+	//Serial.print F("Menu:"); Serial.println(menuPage);
 
 	static byte lastmenu;  //remember last menu for paint or refresh
 
@@ -852,7 +852,7 @@ void displaywarning(int warningcode)
 	if (warningcode & WRN_LINK) //link lost
 	{
 		#ifdef DEBUG
-			Serial.print("link Lost");
+			Serial.print F("link Lost");
 		#endif
 
 		display.setTextColor(WHITE, RED);
@@ -861,7 +861,7 @@ void displaywarning(int warningcode)
 	if (warningcode & WRN_FIX)  // GPS fix lost
 	{
 		#ifdef DEBUG
-			Serial.println("GPS fix Lost");
+			Serial.println F("GPS fix Lost");
 		#endif
 
 		display.setTextColor(BLACK, ORANGE);
@@ -917,7 +917,7 @@ void sendToGoogle(Payload stcData)
 
 	char hexCS1[2];
 	sprintf(hexCS1, "%02X", checksum(gpsstr1));
-	Serial.print("$"); Serial.print(gpsstr1); Serial.print("*"); Serial.println(hexCS1);
+	Serial.print F("$"); Serial.print(gpsstr1); Serial.print F("*"); Serial.println(hexCS1);
 
 	//$GPRMC,233913.000,A,3842.9618,N,00916.8614,W,0.50,50.58,180216,,,A*4A
 	char *k = gpsstr2;
@@ -932,7 +932,7 @@ void sendToGoogle(Payload stcData)
 
 	char hexCS2[2];
 	sprintf(hexCS2, "%02X", checksum(gpsstr2));
-	Serial.print("$"); Serial.print(gpsstr2); Serial.print("*"); Serial.println(hexCS2);
+	Serial.print F("$"); Serial.print(gpsstr2); Serial.print F("*"); Serial.println(hexCS2);
 }
 
 /*
@@ -960,26 +960,26 @@ char* fill(char* str, int length, char charcode, bool initialize)
 
 // Interrupt is called once a millisecond, looks for any new GPS data, and stores it
 SIGNAL(TIMER0_COMPA_vect) {
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
+		char c = GPS.read();
+		// if you want to debug, this is a good time to do it!
 #ifdef UDR0
-    if (c) UDR0 = c;
-  // writing direct to UDR0 is much much faster than Serial.print
-  // but only one character can be written at a time.
+				if (c) UDR0 = c;
+		// writing direct to UDR0 is much much faster than Serial.print
+		// but only one character can be written at a time.
 #endif
 }
 
 void useInterrupt(boolean v) {
-  if (v) {
-    // Timer0 is already used for millis() - we'll just interrupt somewhere
-    // in the middle and call the "Compare A" function above
-    OCR0A = 0xAF;
-    TIMSK0 |= _BV(OCIE0A);
-    usingInterrupt = true;
-  }
-  else {
-    // do not call the interrupt function COMPA anymore
-    TIMSK0 &= ~_BV(OCIE0A);
-    usingInterrupt = false;
-  }
+		if (v) {
+				// Timer0 is already used for millis() - we'll just interrupt somewhere
+				// in the middle and call the "Compare A" function above
+				OCR0A = 0xAF;
+				TIMSK0 |= _BV(OCIE0A);
+				usingInterrupt = true;
+		}
+		else {
+				// do not call the interrupt function COMPA anymore
+				TIMSK0 &= ~_BV(OCIE0A);
+				usingInterrupt = false;
+		}
 }
