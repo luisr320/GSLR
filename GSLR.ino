@@ -29,7 +29,7 @@ To Do:
 - include a function send a command to activate a buzzer on RS to improve plane detection
 */
 
-
+#include <RHReliableDatagram.h>
 #include <arduino.h>
 #include <SPIFlash.h> //Arduino/Moteino library for read/write access to SPI flash memory chips. https://github.com/LowPowerLab/SPIFlash
 #include <SPI.h> //Arduino native SPI library
@@ -49,12 +49,14 @@ To Do:
 #define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
 #define MPAGES 8 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have Google info sent trough the Serial port on menu 2
-//#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
+#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
 //#define LCD // uncomment to use NOKIA LCD display
-#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
+//#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
 //#define DEBUG //Uncomment to activate Serial Monitor Debug
 //#define BUZZER // Comment if a buzzer is installed
 
+#define CLIENT_ADDRESS 2
+#define SERVER_ADDRESS 1
 
 //**************************INITIATE HARDWARE*************************
 
@@ -169,6 +171,9 @@ FlashLogM mylog;
 
 //Initialize the radio instance
 RH_RF95 radio;
+
+// Class to manage message delivery and receipt, using the driver declared above
+RHReliableDatagram manager(radio, SERVER_ADDRESS);
 
 // variables setup
 char input = 0;
@@ -294,6 +299,16 @@ void setup()
 	Serial.println(VERSION);
 	Serial.println("Initializing...");
 
+	if (manager.init())
+	{
+		radio.setFrequency(434);
+	}
+	else
+	{
+		Serial.println("init failed");
+		// Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+	}
+
 	// initialize GPS
 	GPS.begin(GPS_BAUD);
 	useInterrupt(true);
@@ -342,13 +357,6 @@ void setup()
 		display.print("Ver:"); display.println(VERSION);
 		Serial.println("TFT Display ILI9340 - initialized");
 	#endif
-
-	// ### Initialize Radio
-	if (!radio.init())
-		Serial.println("Init failed!");
-	else { Serial.print("Init OK - "); Serial.print(FREQUENCY); Serial.println("Mhz"); }
-	// Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
-	radio.setFrequency(FREQUENCY);
 
 	// ### Initialize Log
 
@@ -443,13 +451,15 @@ void loop()
 
 	// check radio reception and process if data is available
 	if (timerLink > millis()) timerLink = millis();
-	if (radio.available()) //If some packet was received by the radio, wait for all its contents to come trough
+	if (manager.available()) //If some packet was received by the radio, wait for all its contents to come trough
 	{
 		warningLevel = setflag(warningLevel, WRN_LINK, FLAGRESET); // clear Link flag
 
 		uint8_t len = sizeof(Data);
+		uint8_t from;
 
-		if (radio.recv((uint8_t *)&Data, &len))
+		if (manager.recvfromAck((uint8_t *)&Data, &len, &from))
+
 		{
 			timerLink = millis(); //Set a counter for data link loss timeout calculation
 			rssi = radio.lastRssi(); //RSSI;
