@@ -169,11 +169,11 @@ To Do:
 	//Define GPS information LOG received from RS using SPI Flash Memory
 FlashLogM mylog;
 
-//Initialize the radio instance
-RH_RF95 radio;
+//Initialize the generic radio driver instance
+RH_RF95 driver;
 
 // Class to manage message delivery and receipt, using the driver declared above
-RHReliableDatagram manager(radio, SERVER_ADDRESS);
+RHReliableDatagram manager(driver, SERVER_ADDRESS);
 
 // variables setup
 char input = 0;
@@ -302,7 +302,7 @@ void setup()
 
 	if (manager.init())
 	{
-		radio.setFrequency(434);
+		driver.setFrequency(434);
 	}
 	else
 	{
@@ -463,7 +463,7 @@ void loop()
 
 		{
 			timerLink = millis(); //Set a counter for data link loss timeout calculation
-			rssi = radio.lastRssi(); //RSSI;
+			rssi = driver.lastRssi(); //RSSI;
 
 																												// if GPS fix acquired
 			if (Data.fix == 1)
