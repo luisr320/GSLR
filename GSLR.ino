@@ -33,8 +33,8 @@ To Do:
 - include a function send a command to activate a buzzer on RS to improve plane detection
 */
 
-#include <RHReliableDatagram.h>
-#include <arduino.h>
+#include <RHReliableDatagram.h> //http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.61.zip
+//#include <arduino.h> // uncomment if using ATOM editor
 #include <SPIFlash.h> //Arduino/Moteino library for read/write access to SPI flash memory chips. https://github.com/LowPowerLab/SPIFlash
 #include <SPI.h> //Arduino native SPI library
 #include <RH_RF95.h> //Required for the LORA Radios http://www.airspayce.com/mikem/arduino/RadioHead/
@@ -42,7 +42,7 @@ To Do:
 #include <FlashLogM.h> //To handle the Flash log https://github.com/Pedroalbuquerque/FlashLogM
 #include <math.h> //Arduino native math library
 #include <GPSMath.h> //To handle all GPS calculations https://github.com/Pedroalbuquerque/GPSMath
-#include <Adafruit_GPS.h>
+#include <Adafruit_GPS.h> //https://github.com/adafruit/Adafruit_GPS/archive/master.zip
 
 //************************* DEFINITIONS ****************************
 
@@ -248,7 +248,7 @@ struct Payload
 Payload Data;
 
 Payload GS_GPS; // struct to hold last good position from GS GPS
-Payload RS_GPS; // struct to hold last good position from RS GPS, this cold be tha last save position on LOG
+Payload RS_GPS; // struct to hold last good position from RS GPS, this cold be the last save position on LOG
 
 
 // Menu navigation and Warning messages vars and constants
@@ -296,7 +296,7 @@ Adafruit_GPS GPS(&Serial1); // connect GPS to serial 1 GPS_TX on pin10 GPS_RX on
 
 void setup()
 {
-	// initilize Serial port for debugging
+	// initialize Serial port for debugging
 	Serial.begin(SERIAL_BAUD); //Initialize the Serial port at the specified baud rate
 	Serial.println F("GPS AND TELEMETRY MODULE");
 	Serial.println(VERSION);
@@ -314,7 +314,7 @@ void setup()
 
 	// initialize GPS
 	GPS.begin(GPS_BAUD);
-	// Enable interrupts on Timer0
+	// Enable interrupts on Timer0 for GPS
 	// Timer0 is already used for millis() - we'll just interrupt somewhere
 	// in the middle and call the "Compare A" function
 	OCR0A = 0xAF;
@@ -666,7 +666,6 @@ void logposition(float loglat, float loglong)
 
 void displaymenu(byte menuPage, bool forceRepaint)
 {
-	//Serial.print F("Menu:"); Serial.println(menuPage);
 
 	static byte lastmenu;  //remember last menu for paint or refresh
 
@@ -967,6 +966,7 @@ char* fill(char* str, int length, char charcode, bool initialize)
 // Interrupt is called once a millisecond, looks for any new GPS data, and stores it
 SIGNAL(TIMER0_COMPA_vect) {
 		char c = GPS.read();
+		Serial.println(c);
 		// if you want to debug, this is a good time to do it!
 #ifdef UDR0
 				if (c) UDR0 = c;
