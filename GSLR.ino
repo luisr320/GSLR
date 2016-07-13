@@ -10,8 +10,12 @@
 // **********************************************************************************************************
 
 /*
-version V1.2.0
+version V1.3.0
 Changes:
+date: 2016.07.13 Edited by Luis Rodrigues:
+- changed the radio handling to LORA with Reliable Datagram
+- remote station battery is now displayed
+- committed to always using the interrupt for the GPS
 date: 2016.07.04 Edited by Luis Rodrigues:
 - send to Google function reactivated on menu 2
 - removed all bounce2 library references
@@ -42,7 +46,7 @@ To Do:
 
 //************************* DEFINITIONS ****************************
 
-#define VERSION "GS LR MEGA V1.2.0"
+#define VERSION "GS LR MEGA V1.3.0"
 #define FREQUENCY 434 //Match with the correct radio frequency of the other radio
 #define SERIAL_BAUD 115200 //To communicate with serial monitor for debug
 #define BUTPIN1 A7 //Analog pin assigned to FIX button
