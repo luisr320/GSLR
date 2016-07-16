@@ -12,6 +12,8 @@
 /*
 version V1.3.0
 Changes:
+date: 2016.07.16 Edited by Luis Rodrigues
+- Adafruit 2.4" TFT display with touchscreen added
 date: 2016.07.13 Edited by Luis Rodrigues:
 - changed the radio handling to LORA with Reliable Datagram
 - remote station battery is now displayed
