@@ -33,6 +33,7 @@ To Do:
 - include a function send a command to activate a buzzer on RS to improve plane detection
 */
 
+
 #include <RHReliableDatagram.h> //http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.61.zip
 //#include <arduino.h> // uncomment if using ATOM editor
 #include <SPIFlash.h> //Arduino/Moteino library for read/write access to SPI flash memory chips. https://github.com/LowPowerLab/SPIFlash
@@ -44,20 +45,37 @@ To Do:
 #include <GPSMath.h> //To handle all GPS calculations https://github.com/Pedroalbuquerque/GPSMath
 #include <Adafruit_GPS.h> //https://github.com/adafruit/Adafruit_GPS/archive/master.zip
 
+
 //************************* DEFINITIONS ****************************
+
+//Adaruit 2.4 TFT with touchscreen
+// For the Moteino Mega, use digital Analog pins A0 through A7
+//   D0 connects to analog pin A0
+//   D1 connects to analog pin A1
+//   D2 connects to analog pin A2
+//   D3 connects to analog pin A3
+//   D4 connects to analog pin A4
+//   D5 connects to analog pin A5
+//   D6 connects to analog pin A6
+//   D7 connects to analog pin A7
+#define YP A0
+#define XM A1
+#define YM A2
+#define XP A3
 
 #define VERSION "GS LR MEGA V1.3.0"
 #define FREQUENCY 434 //Match with the correct radio frequency of the other radio
 #define SERIAL_BAUD 115200 //To communicate with serial monitor for debug
-#define BUTPIN1 A7 //Analog pin assigned to FIX button
-#define BUTPIN2 A6 //Analog pin assigned to MENUS SCROLL button
+#define BUTPIN1 12 //Analog pin assigned to FIX button
+#define BUTPIN2 13 //Analog pin assigned to MENUS SCROLL button
 #define MPAGES 8 //Number of menu pages
 #define GOOGLEMAPS //Uncomment to have Google info sent trough the Serial port on menu 2
-#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
+#define TFT_TOUCH_9341
+//#define TFT_ILI9340 //Uncomment to use Adafruit 2.2" TFT display
 //#define LCD // uncomment to use NOKIA LCD display
 //#define TFT_ST7735 //Uncomment if you use the Seed Studio TFT 1.8"
 //#define DEBUG //Uncomment to activate Serial Monitor Debug
-//#define BUZZER // Comment if a buzzer is installed
+#define BUZZER // Comment if a buzzer is installed
 
 #define CLIENT_ADDRESS 2
 #define SERVER_ADDRESS 1
@@ -65,13 +83,63 @@ To Do:
 //**************************INITIATE HARDWARE*************************
 
 #ifdef BUZZER
-	#define BUZZ A6 //Buzzer output pin
+	#define BUZZ 14 //Buzzer output pin
 #endif
 
 #ifdef __AVR_ATmega1284P__
 	#define LED           15 // Moteino MEGAs have LEDs on D15
 #else
 	#define LED           9 // Moteinos have LEDs on D9
+#endif
+
+#ifdef TFT_TOUCH_9341
+
+	#include <Adafruit_TFTLCD.h>
+	#include <TouchScreen.h>
+
+	#define YP A0  // must be an analog pin, use "An" notation!
+	#define XM A1  // must be an analog pin, use "An" notation!
+	#define YM A2  // can be a digital pin
+	#define XP A3   // can be a digital pin
+
+	#define TS_MINX 150
+	#define TS_MINY 120
+	#define TS_MAXX 920
+	#define TS_MAXY 940
+	
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
+
+	#define LCD_CS 18
+	#define LCD_CD 19
+	#define LCD_WR 20
+	#define LCD_RD 21
+	// optional
+	#define LCD_RESET A4
+
+	// Assign human-readable names to some common 16-bit color values:
+	#define	BLACK   0x0000
+	#define	BLUE    0x001F
+	#define	RED     0xF800
+	#define	GREEN   0x07E0
+	#define CYAN    0x07FF
+	#define MAGENTA 0xF81F
+	#define YELLOW  0xFFE0
+	#define WHITE   0xFFFF
+	#define ORANGE  0xFC00
+
+	// character size from Adafruit_GXF lib
+	#define CHARWIDTH 6
+	#define CHARHEIGHT 8
+	#define SCRROTATION 0 // 90º rotation
+	#define CHARSCALE 2
+	#define SCRLINES 10   // 20 Lines or 27 characters / CHARSCALE
+	#define SCRCHARS 25   // 21 characters or 16 lines /CHARSCALE
+
+	Adafruit_TFTLCD display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
+
+	#define BOXSIZE 120
+#else
+
 #endif
 
 #ifdef LCD
@@ -137,7 +205,7 @@ To Do:
 
 #ifdef TFT_ILI9340
 
-	#include <Adafruit_ILI9340.h> //Library required to handle the TFT I2C with the radio interrupts
+	#include <Adafruit_ILI9340_PA.h> //Library required to handle the TFT I2C with the radio interrupts
 
 	// pin definition for FT_ILI9340 ADAFRUIT TFT display
 	#define SCL 7 //Clock
@@ -191,6 +259,8 @@ int level = 0;
 bool fixinMem = 0; //variable holding fix in memory condition
 bool kmflag = 0; //if distance is > 1000m, display in Km
 bool kmflagmem = 0; //hold the previous kmflag status
+bool button1 = 0;
+bool button2 = 0;
 byte menuPage = 1; //hold the actual page number on the menu
 long int homeazim = 0; //variable to hold azimuth from GPS position to home
 long int homealt = 0; //Variable to hold Home altitude (FIX)
@@ -320,12 +390,11 @@ void setup()
 	OCR0A = 0xAF;
 	TIMSK0 |= _BV(OCIE0A);
 
-
 	// ### Initialize push-buttons
-	pinMode(BUTPIN1, INPUT_PULLUP);	// Setup the first button with an internal pull-up
-	pinMode(BUTPIN2, INPUT_PULLUP);	// Setup the second button with an internal pull-up
+	pinMode(BUTPIN1, INPUT_PULLUP); // Setup the first button with an internal pull-up
+	pinMode(BUTPIN2, INPUT_PULLUP); // Setup the second button with an internal pull-up
 
-	#ifdef LCD
+		#ifdef LCD
 		pinMode(PIN_LCD_LIGHT, OUTPUT); //LCD backlight, LOW = backlight ON
 	#endif
 
@@ -338,6 +407,46 @@ void setup()
 	SPI.usingInterrupt(digitalPinToInterrupt(2));
 
 	// ### Initialize  display
+
+	#ifdef TFT_TOUCH_9341
+		display.reset();
+		uint16_t identifier = display.readID();
+		if (identifier == 0x9341)
+		{
+			display.begin(identifier);
+			display.fillScreen(BLACK);
+			display.setTextSize(CHARSCALE);
+			display.setRotation(SCRROTATION);
+			display.setTextColor(WHITE, BLACK);
+			display.setTextWrap(true);
+			displaySetCursor(2, 0);
+			display.println(F("GPS TELEMETRY"));
+			display.println(F("Ver:")); display.println(VERSION);
+			delay(3000);
+			displaySetCursor(8, 0);
+			display.setTextColor(WHITE);  display.setTextSize(2);
+			display.println("    Please wait...");
+			display.println("   Analizing LOG...");
+			display.setFont();
+		}
+		else
+		{
+			Serial.print(F("Unknown LCD driver chip: "));
+			Serial.println(identifier, HEX);
+			return;
+		}
+
+
+
+
+	
+
+	
+		#define MINPRESSURE 10
+		#define MAXPRESSURE 1000
+
+	#endif
+
 	#ifdef LCD // display SETUP (Nokia LCD)
 		display.begin();
 		displayReset(); //Cleanup the LCD
@@ -384,17 +493,56 @@ void setup()
 
 void loop()
 {
+	#ifdef TFT_TOUCH_9341
+
+		TSPoint p = ts.getPoint();
+		pinMode(XM, OUTPUT);
+		pinMode(YP, OUTPUT);
+
+		if (p.z > MINPRESSURE && p.z < MAXPRESSURE)
+		{
+		
+			// scale from 0->1023 to tft.width
+			p.x = (map(p.x, TS_MINX, TS_MAXX, display.width(), 0)) - 5;
+			p.y = (map(p.y, TS_MINY, TS_MAXY, display.height(), 0)) - 15;
+
+			if (p.y > 200)
+			{
+				if (p.x < BOXSIZE) {
+					#ifdef BUZZER
+						Blink(BUZZ, 5);
+					#endif
+						button1 = 1;
+				}
+				else if (p.x < BOXSIZE * 2) {
+					button2 = 1;
+				}
+			}
+		}
+	#endif
+
 	if (!digitalRead(BUTPIN1))  // process button 1 if pressed - Menu navigation
+		button1 = 1;
+	else if (!digitalRead(BUTPIN2))
+		button2 = 1;
+
+	
+	if (button1 == 1)  // process button 1 if pressed - Menu navigation
 	{
+		button1 = 0;
 		changeMenu();
 		displaymenu(menuPage, true);
 		warningLevel = setflag(warningLevel, 0xFF, FLAGRESET); // reset all warning to force re-evaluation
 	}
-	if (!digitalRead(BUTPIN2))// process button 2 if pressed - Function within Menu
+	if (button2 == 1)// process button 2 if pressed - Function within Menu
 	{
+		button2 = 0;
 		switch (menuPage)
 		{
 		case 1: // Navigate
+		#ifdef BUZZER
+			Blink(BUZZ, 5);
+		#endif
 			fixposition();
 			break;
 		case 2: // GPS info
@@ -421,6 +569,9 @@ void loop()
 			#endif
 			break;
 		case 7: // LOG erase
+			#ifdef BUZZER
+				Blink(BUZZ, 10);
+			#endif
 			displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(3, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
@@ -430,6 +581,9 @@ void loop()
 			break;
 		case 8: // dump log to Googlemaps
 			//  display some activity message
+			#ifdef BUZZER
+				Blink(BUZZ, 10);
+			#endif
 			displaySetCursor(1, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(2, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
 			displaySetCursor(3, 0); display.print(fill(strPRT, SCRCHARS, ' ', true));
@@ -455,6 +609,7 @@ void loop()
 		#endif
 		warningLevel = setflag(warningLevel, 0xFF, FLAGRESET); // reset all warning to force re-evaluation
 	}
+	
 
 	// check radio reception and process if data is available
 	if (timerLink > millis()) timerLink = millis();
@@ -621,16 +776,30 @@ void Blink(byte PIN, int DELAY_MS)//The BUZZ Blinking function
 }
 #endif
 
-void displayReset()
-{
-	display.fillScreen(BLACK);
-	display.setTextSize(CHARSCALE);
-	display.setRotation(SCRROTATION);
-	display.setTextColor(WHITE, BLACK);
-	display.setTextWrap(true);
-	display.setCursor(0, 0);
-	return;
-}
+	void displayReset()
+	{
+		display.fillScreen(BLACK);
+
+		display.drawRect(0, 200, BOXSIZE, BOXSIZE, WHITE);
+		display.fillRect(0, 200, BOXSIZE, BOXSIZE, RED);
+		display.drawRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, WHITE);
+		display.fillRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, YELLOW);
+		displaySetCursor(16, 4);
+		display.setTextColor(WHITE);  display.setTextSize(4);
+		display.println("B1");
+		displaySetCursor(16, 14);
+		display.setTextColor(BLUE);  display.setTextSize(4);
+		display.println("B2");
+
+
+		display.setTextSize(CHARSCALE);
+		display.setRotation(SCRROTATION);
+		display.setTextColor(WHITE, BLACK);
+		display.setTextWrap(true);
+		display.setCursor(0, 0);
+		return;
+	}
+
 
 void displaySetCursor(int line, int column)
 {
@@ -677,20 +846,23 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0); display.print("1 - STATUS");
+				displaySetCursor(0, 0);
+				display.print("1 - STATUS");
 				displaySetCursor(1, 0); sprintf(strPRT, "SAT:%i", Data.satellites); display.print(strPRT);
 				displaySetCursor(2, 0); sprintf(strPRT, "QUAL:%d", Data.fixquality); display.print(strPRT);
-				displaySetCursor(3, 0);  sprintf(strPRT, "HDOP:%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
+				displaySetCursor(3, 0); sprintf(strPRT, "HDOP:%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
 				displaySetCursor(4, 0); sprintf(strPRT, "RX_RSSI:%d", rssi); display.print(strPRT);
 				displaySetCursor(5, 0); sprintf(strPRT, "RS BAT:%s V", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
 			}
 			else // if already in menu, print just info to reduce screen flicker
 			{
-				displaySetCursor(1, 4); display.print(Data.satellites);
-				displaySetCursor(2, 5); display.print(Data.fixquality);
+				displaySetCursor(1, 4); 
+				display.print(Data.satellites);
+				displaySetCursor(2, 5);
+				display.print(Data.fixquality);
 				displaySetCursor(3, 5);  sprintf(strPRT, "%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 8); display.print(rssi);
-				displaySetCursor(5, 7); sprintf(strPRT, "%s", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 8);	display.print(rssi);
+				displaySetCursor(5, 7); sprintf(strPRT, "%s", dtostrf(Data.batteryVolts, 4, 2, strtmp));	display.print(strPRT);
 			}
 			break;
 		}
