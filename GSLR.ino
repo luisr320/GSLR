@@ -50,7 +50,7 @@ To Do:
 
 //************************* DEFINITIONS ****************************
 
-//Adaruit 2.4 TFT with touchscreen
+// Adaruit 2.4 TFT with touchscreen
 // For the Moteino Mega, use digital Analog pins A0 through A7
 //   D0 connects to analog pin A0
 //   D1 connects to analog pin A1
@@ -116,7 +116,7 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 	#define LCD_WR 20
 	#define LCD_RD 21
 	// optional
-	#define LCD_RESET A4
+	#define LCD_RESET 0
 
 	// Assign human-readable names to some common 16-bit color values:
 	#define	BLACK   0x0000
@@ -429,7 +429,7 @@ void setup()
 			display.setTextColor(WHITE);  display.setTextSize(2);
 			display.println("    Please wait...");
 			display.println("   Analizing LOG...");
-			display.setFont();
+
 		}
 		else
 		{
@@ -437,13 +437,7 @@ void setup()
 			Serial.println(identifier, HEX);
 			return;
 		}
-
-
-
-
-	
-
-	
+				
 		#define MINPRESSURE 10
 		#define MAXPRESSURE 1000
 
@@ -495,6 +489,7 @@ void setup()
 
 void loop()
 {
+	makeHeader();
 	#ifdef TFT_TOUCH_9341
 
 		TSPoint p = ts.getPoint();
@@ -626,31 +621,30 @@ void loop()
 
 		{
 			timerLink = millis(); //Set a counter for data link loss timeout calculation
-			rssi = driver.lastRssi(); //RSSI;
 
-																												// if GPS fix acquired
-			if (Data.fix == 1)
+	
+			rssi = driver.lastRssi();	//RSSI;
+
+
+			if (Data.fix == 1)	// if GPS fix acquired
 			{
 				if (fixinMem == 0) fixposition();
-				fixinMem = 1;
+					fixinMem = 1;
 
 				warningLevel = setflag(warningLevel, WRN_FIX, FLAGRESET);
 
-				kmflag = GPSDist(homelat, homelon, Data.latitudedeg, Data.longitudedeg, &homedist, &homeazim); // Run the distance calculating function, passing the memorized position as arguments
+				// Run the distance calculating function, passing the memorized position as arguments
+				kmflag = GPSDist(homelat, homelon, Data.latitudedeg, Data.longitudedeg, &homedist, &homeazim); 
 
-																																																																																																			// check maximum altitude
-				if (Data.altitude > maxalt + homealt)
-				{
+
+				if (Data.altitude > maxalt + homealt)	// check maximum altitude
 					maxalt = Data.altitude - homealt;
-				}
-				// check maximum distance
-				if (kmflag == 0)
+
+				if (kmflag == 0)	// check maximum distance
 				{
 					kmflagmem = kmflag;
 					if (homedist > maxdist)
-					{
 						maxdist = homedist;
-					}
 				}
 				else
 				{
@@ -660,29 +654,22 @@ void loop()
 						maxdist = homedist;
 					}
 					else if (homedist > maxdist)
-					{
 						maxdist = homedist;
-					}
 				}
 
 				//check maximum speed
 				if (Data.groundspeed*1.852 < 1)
-				{
 					Data.groundspeed = 0;
-				}
 				if (Data.groundspeed*1.852 > highspeed)
-				{
 					highspeed = Data.groundspeed*1.852;
-				}
 			}
 			else
-			{
 				warningLevel = setflag(warningLevel, WRN_FIX, FLAGSET);
-			}
+
 			// save data just received to Log memory
 			mylog.saveData(Data);
 			#ifdef GOOGLEMAPS
-						sendToGoogle(Data);
+				sendToGoogle(Data);
 			#endif
 			displaymenu(menuPage, false); // update menu info (menu page number, screen refresh)
 		}
@@ -694,19 +681,20 @@ void loop()
 		{
 			warningLevel = setflag(warningLevel, WRN_LINK, FLAGSET);  // set LINK flag
 			#ifdef BUZZER
-						newbuzztimer = millis();
-						if (newbuzztimer > (oldbuzztimer + 2000))
-						{
-							oldbuzztimer = newbuzztimer;
-							Blink(BUZZ, 5);
-							delay(100);
-							Blink(BUZZ, 5);
-						}
+				newbuzztimer = millis();
+				if (newbuzztimer > (oldbuzztimer + 2000))
+				{
+					oldbuzztimer = newbuzztimer;
+					Blink(BUZZ, 5);
+					delay(100);
+					Blink(BUZZ, 5);
+				}
 			#endif
 		}
 	}
 	// check Warnings
-	if (millis() < timerWarning) timerWarning = millis(); // if millis() wrap around reinitialize timer
+	if (millis() < timerWarning)
+		timerWarning = millis(); // if millis() wrap around reinitialize timer
 	if (millis() > timerWarning + 2000)
 	{
 		displaywarning(warningLevel);
@@ -735,11 +723,52 @@ void loop()
 
 	}
 	*/
+
 }
 
 //----------------------------------------------------------------------//
 //                             FUNCTIONS                                //
 //----------------------------------------------------------------------//
+
+void makeHeader()
+{
+	if (Data.batteryVolts < 3.2)
+	{
+		display.fillRect(204, 0, 14, 12, RED);
+		display.drawRect(204, 0, 14, 12, BLACK);
+		display.fillRect(216, 0, 14, 12, BLACK);
+		display.drawRect(216, 0, 14, 12, BLACK);
+		display.fillRect(228, 0, 14, 12, BLACK);
+		display.drawRect(228, 0, 14, 12, BLACK);
+	}
+	else if (Data.batteryVolts >= 3.2 & Data.batteryVolts < 3.6)
+	{
+		display.fillRect(204, 0, 14, 12, YELLOW);
+		display.drawRect(204, 0, 14, 12, BLACK);
+		display.fillRect(216, 0, 14, 12, YELLOW);
+		display.drawRect(216, 0, 14, 12, BLACK);
+		display.fillRect(228, 0, 14, 12, BLACK);
+		display.drawRect(228, 0, 14, 12, BLACK);
+	}
+	else
+	{
+		display.fillRect(204, 0, 14, 12, GREEN);
+		display.drawRect(204, 0, 14, 12, BLACK);
+		display.fillRect(216, 0, 14, 12, GREEN);
+		display.drawRect(216, 0, 14, 12, BLACK);
+		display.fillRect(228, 0, 14, 12, GREEN);
+		display.drawRect(228, 0, 14, 12, BLACK);
+	}
+	display.setCursor(90, 0);
+	if (Data.hour < 10)
+		display.print("0");
+	display.print(Data.hour);
+	display.print(":");
+	if (Data.minute < 10)
+		display.print("0");
+	display.print(Data.minute);
+	display.drawLine(0, 20, 240, 20, RED);
+}
 
 
 uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set)
@@ -782,13 +811,16 @@ void Blink(byte PIN, int DELAY_MS)//The BUZZ Blinking function
 	{
 		display.fillScreen(BLACK);
 
-		display.drawRect(0, 200, BOXSIZE, BOXSIZE, WHITE);
 		display.fillRect(0, 200, BOXSIZE, BOXSIZE, RED);
-		display.drawRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, WHITE);
+		display.drawRect(0, 200, BOXSIZE, BOXSIZE, WHITE);
+
 		display.fillRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, YELLOW);
+		display.drawRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, WHITE);
+
 		displaySetCursor(16, 4);
 		display.setTextColor(WHITE);  display.setTextSize(4);
 		display.println("B1");
+
 		displaySetCursor(16, 14);
 		display.setTextColor(BLUE);  display.setTextSize(4);
 		display.println("B2");
@@ -848,23 +880,23 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0);
+				displaySetCursor(2, 0);
 				display.print("1 - STATUS");
-				displaySetCursor(1, 0); sprintf(strPRT, "SAT:%i", Data.satellites); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "QUAL:%d", Data.fixquality); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "HDOP:%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "RX_RSSI:%d", rssi); display.print(strPRT);
-				displaySetCursor(5, 0); sprintf(strPRT, "RS BAT:%s V", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
+				displaySetCursor(3, 0); sprintf(strPRT, "SAT:%i", Data.satellites); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "QUAL:%d", Data.fixquality); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "HDOP:%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 0); sprintf(strPRT, "RX_RSSI:%d", rssi); display.print(strPRT);
+				displaySetCursor(7, 0); sprintf(strPRT, "RS BAT:%s V", dtostrf(Data.batteryVolts, 4, 2, strtmp)); display.print(strPRT);
 			}
 			else // if already in menu, print just info to reduce screen flicker
 			{
-				displaySetCursor(1, 4); 
+				displaySetCursor(3, 4); 
 				display.print(Data.satellites);
-				displaySetCursor(2, 5);
+				displaySetCursor(4, 5);
 				display.print(Data.fixquality);
-				displaySetCursor(3, 5);  sprintf(strPRT, "%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 8);	display.print(rssi);
-				displaySetCursor(5, 7); sprintf(strPRT, "%s", dtostrf(Data.batteryVolts, 4, 2, strtmp));	display.print(strPRT);
+				displaySetCursor(5, 5);  sprintf(strPRT, "%s", dtostrf(Data.HDOP, 5, 2, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 8);	display.print(rssi);
+				displaySetCursor(7, 7); sprintf(strPRT, "%s", dtostrf(Data.batteryVolts, 4, 2, strtmp));	display.print(strPRT);
 			}
 			break;
 		}
@@ -875,25 +907,25 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0); display.print("2 - INFO");
-				sprintf(strPRT, "ALT:%s m", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(1, 0); display.print(strPRT);
-				sprintf(strPRT, "SPD:%s Km/h", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(2, 0); display.print(strPRT);
-				sprintf(strPRT, "AZM:%s Deg", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(3, 0); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "DST:%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
-				if (kmflag == 0) display.print("m"); else display.print("Km");
+				displaySetCursor(2, 0); display.print("2 - INFO");
+				sprintf(strPRT, "ALT:%s m", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(3, 0); display.print(strPRT);
+				sprintf(strPRT, "SPD:%s Km/h", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(4, 0); display.print(strPRT);
+				sprintf(strPRT, "AZM:%s Deg", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(5, 0); display.print(strPRT);
+				displaySetCursor(6, 0); sprintf(strPRT, "DST:%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
+				if (kmflag == 0) display.print(" m "); else display.print(" Km");
 				display.setTextSize(CHARSCALE + 2);
-				displaySetCursor(5, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(8, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
 			}
 			else
 			{
-				sprintf(strPRT, "%s m      ", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(1, 4); display.print(strPRT);
-				sprintf(strPRT, "%s Km/h      ", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(2, 4); display.print(strPRT);
-				sprintf(strPRT, "%s Deg      ", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(3, 4); display.print(strPRT);
-				displaySetCursor(4, 4); sprintf(strPRT, "%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
-				if (kmflag == 0) display.print("m     "); else display.print("Km      "); //Spaces added to allow "m" or "Km" to be erased after large numbers
+				sprintf(strPRT, "%s m      ", dtostrf(Data.altitude - homealt, 4, 0, strtmp)); displaySetCursor(3, 4); display.print(strPRT);
+				sprintf(strPRT, "%s Km/h      ", dtostrf(Data.groundspeed*1.852, 4, 0, strtmp)); displaySetCursor(4, 4); display.print(strPRT);
+				sprintf(strPRT, "%s Deg      ", dtostrf(homeazim, 4, 0, strtmp)); displaySetCursor(5, 4); display.print(strPRT);
+				displaySetCursor(6, 4); sprintf(strPRT, "%s", dtostrf(homedist, 4, 0, strtmp)); display.print(strPRT);
+				if (kmflag == 0) display.print(" m "); else display.print(" Km"); //Spaces added to allow "m" or "Km" to be erased after large numbers
 				display.setTextSize(CHARSCALE + 2);
-				displaySetCursor(5, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(8, 0); sprintf(strPRT, "%s Km/h", dtostrf(highspeed, 1, 0, strtmp)); display.print(strPRT);
 				display.setTextSize(CHARSCALE);
 			}
 			break;
@@ -905,20 +937,20 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0); display.print("3 - MAXIMUM");
-				displaySetCursor(1, 0); sprintf(strPRT, "MxSpd:%s", dtostrf(highspeed, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "MxAlt:%4d", maxalt); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "MxDst:%d", maxdist); display.print(strPRT);
-				if (kmflag == 0) display.print("m"); else display.print("Km");
-				displaySetCursor(4, 0); sprintf(strPRT, "\nGPS Alt:%s", dtostrf(Data.altitude, 5, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("3 - MAXIMUM");
+				displaySetCursor(3, 0); sprintf(strPRT, "MxSpd:%s K/h", dtostrf(highspeed, 4, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "MxAlt:%4d m", maxalt); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "MxDst:%4d", maxdist); display.print(strPRT);
+				if (kmflag == 0) display.print(" m "); else display.print(" Km");
+				displaySetCursor(7, 0); sprintf(strPRT, "GPS Alt:%s m", dtostrf(Data.altitude, 5, 0, strtmp)); display.print(strPRT);
 			}
 			else
 			{
-				displaySetCursor(1, 6); sprintf(strPRT, "%s", dtostrf(highspeed, 4, 0, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 6); sprintf(strPRT, "%4d", maxalt); display.print(strPRT);
-				displaySetCursor(3, 6); sprintf(strPRT, "%d", maxdist); display.print(strPRT);
-				if (kmflag == 0) display.print("m"); else display.print("Km");
-				displaySetCursor(5, 8); sprintf(strPRT, "%s ", dtostrf(Data.altitude, 5, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(3, 6); sprintf(strPRT, "%s", dtostrf(highspeed, 4, 0, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 6); sprintf(strPRT, "%4d", maxalt); display.print(strPRT);
+				displaySetCursor(5, 6); sprintf(strPRT, "%4d", maxdist); display.print(strPRT);
+				if (kmflag == 0) display.print(" m "); else display.print(" Km");
+				displaySetCursor(7, 8); sprintf(strPRT, "%s ", dtostrf(Data.altitude, 5, 0, strtmp)); display.print(strPRT);
 			}
 			break;
 		}
@@ -929,19 +961,19 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0); display.print("4 - P. POS");
-				displaySetCursor(1, 0); sprintf(strPRT, "LAT:%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "LON:%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "GOOGLE COORD:"); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(5, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("4 - P. POS");
+				displaySetCursor(3, 0); sprintf(strPRT, "LAT:%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "LON:%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "GOOGLE COORD:"); display.print(strPRT);
+				displaySetCursor(6, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(7, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
 			}
 			else
 			{
-				displaySetCursor(1, 4); sprintf(strPRT, "%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(2, 4); sprintf(strPRT, "%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(5, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(3, 4); sprintf(strPRT, "%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 4); sprintf(strPRT, "%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(7, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
 			}
 			break;
 		}
@@ -952,20 +984,20 @@ void displaymenu(byte menuPage, bool forceRepaint)
 			{
 				lastmenu = menuPage;
 				displayReset();
-				displaySetCursor(0, 0); display.print("5 - RECOVERY");
-				displaySetCursor(1, 0); display.print("GOOGLE COORD:");
-				displaySetCursor(2, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 9, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 9, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "AZM:%d", homeazim); display.print(strPRT);
-				displaySetCursor(5, 0); sprintf(strPRT, "DIS:%d", homedist); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("5 - RECOVERY");
+				displaySetCursor(3, 0); display.print("GOOGLE COORD:");
+				displaySetCursor(4, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 9, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 9, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 0); sprintf(strPRT, "AZM:%d", homeazim); display.print(strPRT);
+				displaySetCursor(7, 0); sprintf(strPRT, "DIS:%d", homedist); display.print(strPRT);
 				if (kmflag == 0) display.print("m"); else display.print("Km");
 			}
 			else
 			{
-				displaySetCursor(2, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 9, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(3, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 9, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 4); sprintf(strPRT, "%d", homeazim); display.print(strPRT);
-				displaySetCursor(5, 4); sprintf(strPRT, "%d", homedist); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 9, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 9, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 4); sprintf(strPRT, "%d", homeazim); display.print(strPRT);
+				displaySetCursor(7, 4); sprintf(strPRT, "%d", homedist); display.print(strPRT);
 				if (kmflag == 0) display.print("m"); else display.print("Km");
 			}
 			break;
@@ -978,9 +1010,9 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				lastmenu = menuPage;
 
 				displayReset();
-				displaySetCursor(0, 0); display.print("6 - TOOLS");
-				displaySetCursor(1, 0); display.print("Curr. Ver.:");
-				displaySetCursor(2, 0); sprintf(strPRT, "%s", VERSION); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("6 - TOOLS");
+				displaySetCursor(3, 0); display.print("Curr. Ver.:");
+				displaySetCursor(4, 0); sprintf(strPRT, "%s", VERSION); display.print(strPRT);
 			}
 			break;
 		}
@@ -992,13 +1024,13 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				lastmenu = menuPage;
 
 				displayReset();
-				displaySetCursor(0, 0); display.print("7 - LOGGER");
-				displaySetCursor(1, 0); sprintf(strPRT, "#Records:%lu", mylog.numRecords); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "press B2 to erase!"); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("7 - LOGGER");
+				displaySetCursor(3, 0); sprintf(strPRT, "#Records:%lu", mylog.numRecords); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "press B2 to erase!"); display.print(strPRT);
 			}
 			else
 			{
-				displaySetCursor(1, 9); sprintf(strPRT, "%lu", mylog.numRecords); display.print(strPRT);
+				displaySetCursor(3, 9); sprintf(strPRT, "%lu", mylog.numRecords); display.print(strPRT);
 			}
 			break;
 		}
@@ -1009,9 +1041,9 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				lastmenu = menuPage;
 
 				displayReset();
-				displaySetCursor(0, 0); display.print("8 - Log Dump");
-				displaySetCursor(1, 0); sprintf(strPRT, "connect to PC", mylog.numRecords); display.print(strPRT);
-				displaySetCursor(2, 0); sprintf(strPRT, "press B2 to dump!"); display.print(strPRT);
+				displaySetCursor(2, 0); display.print("8 - Log Dump");
+				displaySetCursor(3, 0); sprintf(strPRT, "connect to PC", mylog.numRecords); display.print(strPRT);
+				displaySetCursor(4, 0); sprintf(strPRT, "press B2 to dump!"); display.print(strPRT);
 			}
 			break;
 		}
@@ -1035,7 +1067,7 @@ void displaywarning(int warningcode)
 		#endif
 
 		display.setTextColor(WHITE, RED);
-		display.print("LINK ");
+		display.print(" LNK ");
 	}
 	if (warningcode & WRN_FIX)  // GPS fix lost
 	{
