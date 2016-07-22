@@ -6,5 +6,8 @@ __vm
 Img
 .travis*
 *.vcx*
+board.buildinfo
+*.elf
+*.hex
 Release
 *.sln*
