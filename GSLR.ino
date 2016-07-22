@@ -13,6 +13,7 @@
 version V1.3.0
 Changes:
 date: 2016.07.20 Edited by Luis Rodrigues
+- GS GPS is displaying data correctly on menu 4
 - Added a new function makeHeader()
 - Added a battery icon for the GS and the RS
 - Replaced the Data.batteryVolts variable with Data.RS_batVolts
@@ -515,6 +516,7 @@ void setup()
 	Serial.println(VERSION);
 	Serial.println F("Initializing...");
 
+
 	if (manager.init())
 	{
 		driver.setFrequency(434);
@@ -634,7 +636,9 @@ void setup()
 
 void loop()
 {
+
 	makeHeader(); // run the header filling function
+	readGSGPS();
 
 	#ifdef TFT_TOUCH_9341
 
@@ -746,7 +750,9 @@ void loop()
 			interrupts();
 			displaymenu(menuPage, true);
 			break;
+
 		}
+		
 		#ifdef LCD
 			display.display();
 		#endif
@@ -839,7 +845,7 @@ void loop()
 				Data.fixquality = 0;
 				Data.HDOP = 99.99;
 				Data.satellites = 0;
-				rssi = -100;
+				rssi = -99;
 				Data.RS_batVolt = 0;
 				displaymenu(menuPage, false); // update menu info (menu page number, screen refresh)
 		}
@@ -853,30 +859,7 @@ void loop()
 		timerWarning = millis();
 	}
 
-	/*
-	// check GPS data if on Search menu (menu 9)
-	if(menuPage = 9)
-	{
-		// place here code to process local GPS data, calculate distance and azimuth from last good RS position
-		if (GPS.newNMEAreceived())
-		{
-			if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
-			{
-				Serial.println("GS NMEA not parsed");
-				return;                         // we can fail to parse a sentence in which case we should just wait for another
-			}
-			else
-			{
-				// save local GPS data to a var
-			}
-
-			// put here code to calculate distance and azimuth from GS to last RS good location
-		}
-
 	}
-	*/
-
-}
 
 //----------------------------------------------------------------------//
 //                             FUNCTIONS                                //
@@ -1034,6 +1017,21 @@ void makeHeader()
 	display.drawLine(0, 20, 240, 20, RED);
 }
 
+void readGSGPS()
+{
+	if (GPS.newNMEAreceived())
+	{
+		if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+		{
+			return;                         // we can fail to parse a sentence in which case we should just wait for another
+		}
+		else
+		{
+			Serial.println(GPS.latitudeDegrees);
+			Serial.println(GPS.longitudeDegrees);
+		}
+	}
+}
 
 uint8_t setflag(uint8_t flagContainer, uint8_t flag, bool set)
 {
@@ -1226,18 +1224,19 @@ void displaymenu(byte menuPage, bool forceRepaint)
 				lastmenu = menuPage;
 				displayReset();
 				displaySetCursor(2, 0); display.print("4 - P. POS");
-				displaySetCursor(3, 0); sprintf(strPRT, "LAT:%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 0); sprintf(strPRT, "LON:%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(5, 0); sprintf(strPRT, "GOOGLE COORD:"); display.print(strPRT);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(7, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(3, 0); display.print("RS:");
+				displaySetCursor(4, 0); sprintf(strPRT, "LAT:%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(5, 0); sprintf(strPRT, "LON:%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(6, 0); display.print("GS:");
+				displaySetCursor(7, 0); sprintf(strPRT, "LAT:%c %s", GPS.lat, dtostrf(GPS.latitudeDegrees, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(8, 0); sprintf(strPRT, "LON:%c %s", GPS.lon, dtostrf(GPS.longitudeDegrees, 9, 4, strtmp)); display.print(strPRT);
 			}
 			else
 			{
-				displaySetCursor(3, 4); sprintf(strPRT, "%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(4, 4); sprintf(strPRT, "%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
-				displaySetCursor(6, 0); sprintf(strPRT, "%s", dtostrf(Data.latitudedeg, 10, 6, strtmp)); display.print(strPRT);
-				displaySetCursor(7, 0); sprintf(strPRT, "%s", dtostrf(Data.longitudedeg, 10, 6, strtmp)); display.print(strPRT);
+				displaySetCursor(4, 4); sprintf(strPRT, "%c %s", Data.lat, dtostrf(Data.latitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(5, 4); sprintf(strPRT, "%c %s", Data.lon, dtostrf(Data.longitude, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(7, 4); sprintf(strPRT, "%c %s", GPS.lat, dtostrf(GPS.latitudeDegrees, 9, 4, strtmp)); display.print(strPRT);
+				displaySetCursor(8, 4); sprintf(strPRT, "%c %s", GPS.lon, dtostrf(GPS.longitudeDegrees, 9, 4, strtmp)); display.print(strPRT);
 			}
 			break;
 		}
