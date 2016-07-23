@@ -55,6 +55,8 @@ int nul = 0; //Uncomment only for Visual Studio Breakpoints debugging
 #include <math.h> //Arduino native math library
 #include <GPSMath.h> //To handle all GPS calculations https://github.com/Pedroalbuquerque/GPSMath
 #include <Adafruit_GPS.h> //https://github.com/adafruit/Adafruit_GPS/archive/master.zip
+#include <EEPROM.h>
+#include <EEPROMAnything.h>
 
 
 //************************* DEFINITIONS ****************************
@@ -151,7 +153,6 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 
 	Adafruit_TFTLCD display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
-	#define BOXSIZE 120
 #else
 
 #endif
@@ -654,15 +655,15 @@ void loop()
 			p.x = (map(p.x, TS_MINX, TS_MAXX, display.width(), 0)) - 5;
 			p.y = (map(p.y, TS_MINY, TS_MAXY, display.height(), 0)) - 15;
 
-			if (p.y > 200)
+			if (p.y > 250)
 			{
-				if (p.x < BOXSIZE) {
+				if (p.x < 150) {
 					#ifdef BUZZER
 						Blink(BUZZ, 5);
 					#endif
 						button1 = 1;
 				}
-				else if (p.x < BOXSIZE * 2) {
+				else if (p.x > 140 & p.x < 240) {
 					button2 = 1;
 				}
 			}
@@ -1076,20 +1077,20 @@ void Blink(byte PIN, int DELAY_MS)//The BUZZ Blinking function
 
 	void displayReset()
 	{
-		display.fillScreen(BLACK);
+		display.fillRect(0, 21, 240, 300, BLACK);
 
-		display.fillRect(0, 200, BOXSIZE, BOXSIZE, RED);
-		display.drawRect(0, 200, BOXSIZE, BOXSIZE, WHITE);
+		display.fillRect(0, 250, 100, 70, RED);
+		display.drawRect(0, 250, 100, 70, WHITE);
 
-		display.fillRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, YELLOW);
-		display.drawRect(BOXSIZE, 200, BOXSIZE, BOXSIZE, WHITE);
+		display.fillRect(140, 250, 100, 70, YELLOW);
+		display.drawRect(140, 250, 100, 70, WHITE);
 
-		displaySetCursor(16, 4);
-		display.setTextColor(WHITE);  display.setTextSize(4);
+		displaySetCursor(17, 3);
+		display.setTextColor(WHITE);  display.setTextSize(3);
 		display.println("B1");
 
-		displaySetCursor(16, 14);
-		display.setTextColor(BLUE);  display.setTextSize(4);
+		displaySetCursor(17, 15);
+		display.setTextColor(BLUE);  display.setTextSize(3);
 		display.println("B2");
 
 
@@ -1118,6 +1119,7 @@ void fixposition()
 	homelat = Data.latitudedeg;//Memorize FIX latitude in DDMM.SS
 	homelon = Data.longitudedeg;//Memorize FIX longitude in DDDMM.SS
 	displayReset();
+	displaySetCursor(3, 0);
 	display.println("FIX Position Memorized");
 	display.println("LAT:"); display.println(homelat, 8); display.println("LON:"); display.println(homelon, 8);
 	homealt = Data.altitude;
