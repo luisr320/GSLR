@@ -13,6 +13,7 @@
 version V1.3.0
 Changes:
 date: 2016.07.20 Edited by Luis Rodrigues
+- Added a circle in the header with green color if there is a fix, or red if not
 - GS GPS is displaying data correctly on menu 4
 - Added a new function makeHeader()
 - Added a battery icon for the GS and the RS
@@ -859,7 +860,7 @@ void loop()
 		timerWarning = millis();
 	}
 
-	}
+}
 
 //----------------------------------------------------------------------//
 //                             FUNCTIONS                                //
@@ -955,13 +956,6 @@ void makeHeader()
 		col[4] = { GREEN };
 	}
 
-	/*
-	display.drawRect(30, 9, 4, 4, GREEN);
-	display.drawRect(35, 7, 4, 6, GREEN);
-	display.drawRect(40, 5, 4, 8, GREEN);
-	display.drawRect(45, 3, 4, 10, GREEN);
-	display.drawRect(50, 1, 4, 12, GREEN);
-	*/
 	display.fillRect(31, 9, 4, 4, col[0]);
 	display.fillRect(36, 7, 4, 6, col[1]);
 	display.fillRect(41, 5, 4, 8, col[2]);
@@ -1006,29 +1000,40 @@ void makeHeader()
 	display.drawRoundRect(216, 0, 23, 13, 1, WHITE);
 	display.drawRect(214, 4, 2, 5, WHITE);
 
-	display.setCursor(90, 0);
-	if (Data.hour < 10)
+	if (GPS.fix)
+		col[0] = { GREEN };
+	else
+		col[0] = { RED };
+
+display.fillCircle(66, 6, 4, col[0]);
+display.drawCircle(66, 6, 6, WHITE);
+
+if (Data.fix)
+col[0] = { GREEN };
+else
+col[0] = { RED };
+
+display.fillCircle(202, 6, 4, col[0]);
+display.drawCircle(202, 6, 6, WHITE);
+
+	displaySetCursor(0, 8);
+	if (GPS.hour < 10)
 		display.print("0");
-	display.print(Data.hour);
+	display.print(GPS.hour);
 	display.print(":");
-	if (Data.minute < 10)
+	if (GPS.minute < 10)
 		display.print("0");
-	display.print(Data.minute);
+	display.print(GPS.minute);
 	display.drawLine(0, 20, 240, 20, RED);
 }
 
 void readGSGPS()
 {
-	if (GPS.newNMEAreceived())
+	if (GPS.newNMEAreceived()) // Get data from the GS GPS
 	{
 		if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
 		{
 			return;                         // we can fail to parse a sentence in which case we should just wait for another
-		}
-		else
-		{
-			Serial.println(GPS.latitudeDegrees);
-			Serial.println(GPS.longitudeDegrees);
 		}
 	}
 }
